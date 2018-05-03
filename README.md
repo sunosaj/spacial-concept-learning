@@ -1,3 +1,1 @@
 # spacial-concept-learning
-
-hi
