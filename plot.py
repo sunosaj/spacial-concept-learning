@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
@@ -59,6 +60,27 @@ def plot(pred, data):
     plt.plot([-1, 1], [0, 0], 'k-', lw=2)
     plt.plot([0, 0], [-1, 1], 'k-', lw=2)
 
+    # plt.show()
+
+    # Kernel Density Estimator
+    xmin = np.asarray(x_normalized_diff).min()
+    xmax = np.asarray(x_normalized_diff).max()
+    ymin = np.asarray(y_normalized_diff).min()
+    ymax = np.asarray(y_normalized_diff).max()
+
+    # Perform a kernel density estimate on the data:
+    X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    positions = np.vstack([X.ravel(), Y.ravel()])
+    values = np.vstack([np.asarray(x_normalized_diff), np.asarray(y_normalized_diff)])
+    kernel = stats.gaussian_kde(values)
+    Z = np.reshape(kernel(positions).T, X.shape)
+
+    # Plot the results:
+    fig, ax = plt.subplots()
+    ax.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+    # ax.plot(np.asarray(x_normalized_diff), np.asarray(y_normalized_diff), 'k.', markersize=2)
+    ax.set_xlim([-1, 1])
+    ax.set_ylim([-1, 1])
     plt.show()
 
     return weird_img_ids
@@ -80,8 +102,10 @@ def box_images(image_ids):
         info = img_dict[image_id]
 
         # Create a Rectangle patch
-        obj_box = patches.Rectangle((int(info[4]), int(info[5])), int(info[3]), int(info[2]), linewidth=1, edgecolor='r', facecolor='none')
-        subj_box = patches.Rectangle((int(info[11]), int(info[12])), int(info[10]), int(info[9]), linewidth=1, edgecolor='r', facecolor='none')
+        obj_box = patches.Rectangle((int(info[4]), int(info[5])), int(info[3]), int(info[2]), linewidth=1,
+                                    edgecolor='r', facecolor='none')
+        subj_box = patches.Rectangle((int(info[11]), int(info[12])), int(info[10]), int(info[9]), linewidth=1,
+                                     edgecolor='r', facecolor='none')
 
         # Add the patch to the Axes
         ax.add_patch(obj_box)
@@ -91,11 +115,12 @@ def box_images(image_ids):
         plt.annotate("obj: " + info[1], (int(info[4]), int(info[5])))
         plt.annotate("subj: " + info[8], (int(info[11]), int(info[12])))
 
+        plt.title(image_id)
         plt.show()
 
 
 def main():
-    pred = "above"
+    pred = "below"
 
     data = get_data(pred)
     to_dictionary(data)
