@@ -4,8 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
 import csv
+from scipy.stats import kde
+from matplotlib.backends.backend_pdf import PdfPages
+import math
 
 img_dict = {}
+# pp = PdfPages('pred_plots.pdf')
 
 
 def get_data(pred):
@@ -52,36 +56,120 @@ def plot(pred, data):
         ###########################
 
     # Graph the normalized diff coordinates
+    plt.subplot(1, 2, 1)
     plt.title(pred)
-    plt.plot(x_normalized_diff, y_normalized_diff, 'ro')
+    plt.plot(x_normalized_diff, y_normalized_diff, 'ro', markersize=1)
     plt.axis([-1, 1, -1, 1])
 
     # Add x, y axis
-    plt.plot([-1, 1], [0, 0], 'k-', lw=2)
-    plt.plot([0, 0], [-1, 1], 'k-', lw=2)
+    plt.axhline(linewidth=0.5, color='k')
+    plt.axvline(linewidth=0.5, color='k')
+
+    # Keep plot graph square
+    plt.gca().set_aspect('equal', adjustable='box')
 
     # plt.show()
 
-    # Kernel Density Estimator
-    xmin = np.asarray(x_normalized_diff).min()
-    xmax = np.asarray(x_normalized_diff).max()
-    ymin = np.asarray(y_normalized_diff).min()
-    ymax = np.asarray(y_normalized_diff).max()
+    ######################################################
 
-    # Perform a kernel density estimate on the data:
-    X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-    positions = np.vstack([X.ravel(), Y.ravel()])
-    values = np.vstack([np.asarray(x_normalized_diff), np.asarray(y_normalized_diff)])
-    kernel = stats.gaussian_kde(values)
-    Z = np.reshape(kernel(positions).T, X.shape)
+    # # Kernel Density Estimator Method 1
+    # xmin = np.asarray(x_normalized_diff).min()
+    # xmax = np.asarray(x_normalized_diff).max()
+    # ymin = np.asarray(y_normalized_diff).min()
+    # ymax = np.asarray(y_normalized_diff).max()
+    #
+    # # Perform a kernel density estimate on the data:
+    # X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    # positions = np.vstack([X.ravel(), Y.ravel()])
+    # values = np.vstack([np.asarray(x_normalized_diff), np.asarray(y_normalized_diff)])
+    # kernel = stats.gaussian_kde(values)
+    # Z = np.reshape(kernel(positions).T, X.shape)
+    #
+    # # # Plot the results (original):
+    # # plt.subplot(1, 2, 2)
+    # # plt.axis([-1, 1, -1, 1])
+    #
+    # f, ax = plt.subplots()
+    # im = ax.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+    # # ax.plot(np.asarray(x_normalized_diff), np.asarray(y_normalized_diff), 'k.', markersize=2)
+    #
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylim([-1, 1])
+    # f.colorbar(im)
+    # plt.plot([-1, 1], [0, 0], 'k-', lw=2)
+    # plt.plot([0, 0], [-1, 1], 'k-', lw=2)
+    # plt.title(pred)
 
-    # Plot the results:
-    fig, ax = plt.subplots()
-    ax.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
-    # ax.plot(np.asarray(x_normalized_diff), np.asarray(y_normalized_diff), 'k.', markersize=2)
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    plt.show()
+    ######################################################
+
+    #Kernel Density Estimator Method 2###
+    plt.subplot(1, 2, 2)
+    plt.axis([-1, 1, -1, 1])
+
+    kde_x_normalized_diff = np.asarray(x_normalized_diff)
+    kde_y_normalized_diff = np.asarray(y_normalized_diff)
+
+    k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
+    xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
+                      kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
+    zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+
+    plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
+    plt.axhline(linewidth=0.5, color='k')
+    plt.axvline(linewidth=0.5, color='k')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.title(pred)
+    plt.colorbar()
+
+    ##############################
+
+    # #Kernel Density Estimator Method 3#
+    # xmin = np.asarray(x_normalized_diff).min()
+    # xmax = np.asarray(x_normalized_diff).max()
+    # ymin = np.asarray(y_normalized_diff).min()
+    # ymax = np.asarray(y_normalized_diff).max()
+    #
+    # # Perform a kernel density estimate on the data:
+    # X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    # positions = np.vstack([X.ravel(), Y.ravel()])
+    # values = np.vstack([np.asarray(x_normalized_diff), np.asarray(y_normalized_diff)])
+    # kernel = stats.gaussian_kde(values)
+    # Z = np.reshape(kernel(positions).T, X.shape)
+    #
+    # # # Plot the results (original):
+    # # plt.subplot(1, 2, 2)
+    # # plt.axis([-1, 1, -1, 1])
+    #
+    # fig = plt.figure()
+    #
+    # ax1 = fig.add_subplot(121)
+    # ax1.set_xlim([-1, 1])
+    # ax1.set_ylim([-1, 1])
+    # plt.title(pred)
+    # ax1.plot(x_normalized_diff, y_normalized_diff, 'ro', markersize=1)
+    # plt.axhline(linewidth=0.5, color='k')
+    # plt.axvline(linewidth=0.5, color='k')
+    # # plt.gca().set_aspect('equal', adjustable='box')
+    #
+    # ax2 = fig.add_subplot(122)
+    #
+    # # f, ax = plt.subplots()
+    #
+    # im = ax2.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+    #
+    # ax2.set_xlim([-1, 1])
+    # ax2.set_ylim([-1, 1])
+    # plt.axhline(linewidth=0.5, color='k')
+    # plt.axvline(linewidth=0.5, color='k')
+    # plt.title(pred)
+    # fig.colorbar(im)
+
+    ###################################
+
+    # # Save plots
+    plt.savefig("new_pred_plot/" + pred + "_plot.pdf")
+
+    # plt.show()
 
     return weird_img_ids
 
@@ -120,17 +208,24 @@ def box_images(image_ids):
 
 
 def main():
-    pred = "below"
+    predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
+                  "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
+                  "inside", "into", "near", "nearby", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
+                  "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
+                  "within", "without"]
 
+    # num = 0
+    # for pred in predicates:
+    pred = "along"
     data = get_data(pred)
     to_dictionary(data)
     weird_img_ids = plot(pred, data)
-    print(pred + " has " + str(len(weird_img_ids)) + "/" + str(len(data)) + " (" + str(617/13844*100.0) + "%)"
-          + " weird images")
-    box_images(weird_img_ids)
 
-    # plot("below")
-    # plot("on")
+
+    # # Check for weird images
+    # print(pred + " has " + str(len(weird_img_ids)) + "/" + str(len(data)) + " (" + str(617/13844*100.0) + "%)"
+    #       + " weird images")
+    # box_images(weird_img_ids)
 
 
 if __name__ == "__main__":
