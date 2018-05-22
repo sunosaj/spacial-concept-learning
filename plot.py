@@ -56,6 +56,7 @@ def plot(pred, data):
         ###########################
 
     # Graph the normalized diff coordinates
+    plt.figure(figsize=(14, 5))
     plt.subplot(1, 2, 1)
     plt.title(pred)
     plt.plot(x_normalized_diff, y_normalized_diff, 'ro', markersize=1)
@@ -214,12 +215,11 @@ def main():
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
-    # num = 0
     # for pred in predicates:
-    pred = "along"
+    pred = "without"
     data = get_data(pred)
     to_dictionary(data)
-    weird_img_ids = plot(pred, data)
+    weird_img_ids = plot(pred, data) #return weird_img_ids for when want to check for weird images
 
 
     # # Check for weird images
