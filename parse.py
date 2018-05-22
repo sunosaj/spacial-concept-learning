@@ -14,9 +14,8 @@ def get_image_dimensions():
 def json_to_csv(pred):
     read_file = json.loads(open('relationships.json', 'r').read())
     new_file_name = "new_pred/data_pred_" + pred.lower() + ".csv"
-    write_file = csv.writer(open(new_file_name, "wb+"))
-    write_file.writerow(["image_id", "predicate", "obj_name", "obj_h", "obj_w", "obj_x", "obj_y", "obj_id", "id",
-                         "subj_name", "subj_h", "subj_w", "subj_x", "subj_y", "subj_id", "image_width", "image_height"])
+    write_file = csv.writer(open(new_file_name, "w+", newline=''))
+    write_file.writerow(["image_id", "predicate", "obj_name", "obj_h", "obj_w", "obj_x", "obj_y", "obj_id", "id", "subj_name", "subj_h", "subj_w", "subj_x", "subj_y", "subj_id", "image_width", "image_height"])
 
     for rela in read_file:
         image_id = rela["image_id"]
@@ -54,8 +53,10 @@ def main():
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
-    for predicate in predicates:
-        json_to_csv(predicate)
+    # for predicate in predicates:
+    #     json_to_csv(predicate)
+
+    json_to_csv('in')
 
 
 if __name__ == "__main__":
