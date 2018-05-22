@@ -1,15 +1,11 @@
 import numpy as np
-from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
 import csv
 from scipy.stats import kde
-from matplotlib.backends.backend_pdf import PdfPages
-import math
 
 img_dict = {}
-# pp = PdfPages('pred_plots.pdf')
 
 
 def get_data(pred):
@@ -167,7 +163,7 @@ def plot(pred, data):
 
     ###################################
 
-    # # Save plots
+    # Save plots
     plt.savefig("new_pred_plot/" + pred + "_plot.pdf")
 
     # plt.show()
