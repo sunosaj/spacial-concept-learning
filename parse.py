@@ -54,10 +54,10 @@ def main():
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
-    # for predicate in predicates:
-    #     json_to_csv(predicate)
+    predicates = ["above"]
 
-    json_to_csv('above')
+    for predicate in predicates:
+        json_to_csv(predicate)
 
 
 if __name__ == "__main__":

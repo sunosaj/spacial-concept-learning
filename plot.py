@@ -2,11 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
-import csv
 from scipy.stats import kde
 import pandas as pd
-
-# img_dict = {}
 
 
 def get_data(pred):
@@ -14,12 +11,6 @@ def get_data(pred):
     print(file_address)
     data = pd.read_csv(file_address)
     return data
-
-
-# def to_dictionary(data):
-#     # Convert data to a dictionary with image_id to be key and rest of each row to be value
-#     for i in range(len(data)):
-#         img_dict[int(data[i][0])] = data[i][1:]
 
 
 def plot(pred, data):
@@ -127,12 +118,13 @@ def box_images(image_ids, data):
 
 
 def main():
+    predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
+                  "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
+                  "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
+                  "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
+                  "within", "without"]
+
     predicates = ["on"]
-    # ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
-    #  "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
-    #  "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
-    #  "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
-    #  "within", "without"]
 
     for pred in predicates:
         data = get_data(pred)
