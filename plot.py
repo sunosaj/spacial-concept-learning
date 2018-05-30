@@ -8,8 +8,7 @@ import pandas as pd
 
 def get_data(pred):
     file_address = 'new_pred/data_pred_' + pred + '.csv'
-    print(file_address)
-    data = pd.read_csv(file_address)
+    data = pd.read_csv(file_address, encoding="ISO-8859-1")
     return data
 
 
@@ -77,9 +76,9 @@ def plot(pred, data):
     plt.colorbar()
 
     # Save plots
-    # plt.savefig("new_pred_plot/" + pred + "_plot.eps", dpi=40)
+    plt.savefig("new_pred_plot/" + pred + "_plot.pdf")
 
-    plt.show()
+    # plt.show()
 
     return outlier_relationships
 
@@ -123,8 +122,6 @@ def main():
                   "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
-
-    predicates = ["on"]
 
     for pred in predicates:
         data = get_data(pred)
