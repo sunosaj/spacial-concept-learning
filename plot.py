@@ -76,7 +76,7 @@ def plot(pred, data):
     plt.colorbar()
 
     # Save plots
-    plt.savefig("new_pred_plot/" + pred + "_plot.pdf")
+    plt.savefig("new_pred_plot/" + pred + "_plot.png", dpi=300)
 
     # plt.show()
 
