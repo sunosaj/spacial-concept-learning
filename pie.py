@@ -111,7 +111,7 @@ def to_pie_graph(table_name, predicates):
             # Keep the pie charts circular, not oval
             plt.axis('equal')
 
-            print("label_names[" + str(i) + "]: " + str(label_names[i]))
+            # print("label_names[" + str(i) + "]: " + str(label_names[i]))
 
             # Save image
             if table_name == "subj_obj":
@@ -121,6 +121,54 @@ def to_pie_graph(table_name, predicates):
                 plt.savefig("pie_chart/" + table_name + "/" + label_names[i] + "_pie_chart.pdf")
 
             # plt.show()
+
+
+def get_most_frequent(table_name, most_frequent_table, predicates):
+    # If retrieve table from pickled file
+    # https://wiki.python.org/moin/UsingPickle
+    table_location = "pred_occurrences/prep_" + table_name + ".p"
+    table = pickle.load(open(table_location, "rb"))
+
+    for i in range(len(table)):
+        for j in range(len(predicates)):
+            most_frequent_table[j, i] = table[i, j]
+
+
+def to_prep_pie_graph(table_name, predicates):
+    # If retrieve table from pickled file
+    # https://wiki.python.org/moin/UsingPickle
+    table_location = "pred_occurrences/most_frequent_" + table_name + ".p"
+    table = pickle.load(open(table_location, "rb"))
+
+    # Retrieve labels for each row in table
+    label_location = "pred_occurrences/" + table_name + ".p"
+    label_names = pickle.load(open(label_location, "rb"))
+
+    for i in range(len(table)):
+        most_frequent_num = 20
+        most_frequent_indices = table[i].argsort()[-most_frequent_num:][::-1]
+        row_sum = int(sum(table[i]))
+        legend_labels = []
+        for j in range(most_frequent_num):
+            legend_label = label_names[most_frequent_indices[j]][0] + ", " + label_names[most_frequent_indices[j]][1] \
+                           + ": " + str(int(table[i][most_frequent_indices[j]])) + "/" + str(row_sum) + " (" + \
+                           str("{0:.2f}".format(table[i][most_frequent_indices[j]] / row_sum * 100)) + "%)"
+            legend_labels.append(legend_label)
+
+        # Create pie chart
+        label_name = predicates[i]
+        plt.figure(figsize=(14, 7))
+        plt.title(label_name)
+        patches, texts = plt.pie(table[i][most_frequent_indices], startangle=90, counterclock=False)
+        plt.legend(patches, legend_labels, title="Predicates", loc="best")
+
+        # Keep the pie charts circular, not oval
+        plt.axis('equal')
+
+        # Save image
+        plt.savefig("pred_pie_chart/" + table_name + "/" + predicates[i] + "_pie_chart.pdf")
+
+        # plt.show()
 
 
 def main():
@@ -165,10 +213,26 @@ def main():
     # # to_pie_graph(prep_subj, subj, predicates)
     # # to_pie_graph(prep_subj_obj, subj_and_obj, predicates)
 
-    # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
-    to_pie_graph("subj_obj", predicates)
-    to_pie_graph("subj", predicates)
-    to_pie_graph("obj", predicates)
+    # # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
+    # to_pie_graph("subj_obj", predicates)
+    # to_pie_graph("subj", predicates)
+    # to_pie_graph("obj", predicates)
+
+    # # Generate Pie Charts for each predicate and its 10 or 20 or whatever most frequent obj/subj/subj, obj
+    # # Want size of subj_obj to do next thing
+    # prep_subj_obj_size = len(pickle.load(open("pred_occurrences/prep_subj_obj.p", "rb")))
+    #
+    # # Initialize most frequent obj/subj/subj_obj of each predicate tables
+    # prep_most_frequent_subj_obj = np.zeros((len(predicates), prep_subj_obj_size))
+    #
+    # # Fill predicate most frequent obj/subj/subj_obj tables
+    # get_most_frequent("subj_obj", prep_most_frequent_subj_obj, predicates)
+    #
+    # # Save most frequent obj/subj/subj_obj tables
+    # pickle_file(prep_most_frequent_subj_obj, "most_frequent_subj_obj")
+
+    # Plot predicate most frequent obj/subj/subj_obj tables
+    to_prep_pie_graph("subj_obj", predicates)
 
 
 if __name__ == "__main__":
