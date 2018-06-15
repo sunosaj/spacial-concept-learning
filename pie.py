@@ -4,10 +4,6 @@ from scipy import sparse
 import matplotlib.pyplot as plt
 import pandas as pd
 
-subj = []
-obj = []
-subj_obj = []
-
 
 def get_data(pred):
     file_address = 'new_pred/data_pred_' + pred + '.csv'
@@ -16,6 +12,10 @@ def get_data(pred):
 
 
 def get_obj_and_subj(predicates):
+    subj = []
+    obj = []
+    subj_obj = []
+
     # Loop through data rows and add new subjects and objects to subjects and objects unique list
     for pred in predicates:
         data = get_data(pred)
@@ -31,8 +31,14 @@ def get_obj_and_subj(predicates):
                 subj_obj.append((data.iloc[i, 9], data.iloc[i, 2]))
         print("get_obj_and_subj:", pred, "done")
 
+    return subj, obj, subj_obj
 
-def fill_tables(prep_obj, prep_subj, prep_subj_obj, predicates):
+
+def fill_tables(obj, subj, subj_obj, predicates):
+    prep_subj = np.zeros((len(subj), len(predicates)))
+    prep_obj = np.zeros((len(obj), len(predicates)))
+    prep_subj_obj = np.zeros((len(subj_obj), len(predicates)))
+
     for pred in predicates:
         data = get_data(pred)
         for i in range(len(data)):
@@ -41,30 +47,14 @@ def fill_tables(prep_obj, prep_subj, prep_subj_obj, predicates):
             prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2])), predicates.index(pred)] += 1
         print("fill_tables:", pred, "done")
 
+    return prep_subj, prep_obj, prep_subj_obj
+
 
 def pickle_file(table, name):
     # https://wiki.python.org/moin/UsingPickle
     file_name = "pred_occurrences/" + name + ".p"
     with open(file_name, "wb") as fp:  # Pickling
         pickle.dump(table, fp)
-
-
-def to_sparse_matrix(table):
-    # # Doing it this way messes up the sparse matrix generated afterwards
-    # file_name = "pred_occurrences/" + table + ".txt"
-    # with open(table, "rb") as fp:  # Unpickling
-    #     b = pickle.load(fp)
-    # print("to_sparse_matrix", b)
-
-    # # https://wiki.python.org/moin/UsingPickle
-    # loaded_table = pickle.load(open(table, "rb"))
-    # print("loaded_table")
-    # print(loaded_table)
-    # # Convert table to sparse matrix form
-    # # https://stackoverflow.com/questions/7922487/how-to-transform-numpy-matrix-or-array-to-scipy-sparse-matrix
-    # return sparse.csr_matrix(loaded_table)
-
-    return sparse.csr_matrix(table)
 
 
 def to_pie_graph(table_name, predicates):
@@ -178,40 +168,26 @@ def main():
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
-    # # Get all unique subj, obj, and (subj, obj)
-    # get_obj_and_subj(predicates)
+    # Get all unique subj, obj, and (subj, obj)
+    subj, obj, subj_obj = get_obj_and_subj(predicates)
 
-    # # Sort the subj, obj, and (subj, obj) lists
-    # subj.sort()
-    # obj.sort()
-    # subj_obj.sort()
+    # Sort the subj, obj, and (subj, obj) lists
+    subj.sort()
+    obj.sort()
+    subj_obj.sort()
 
-    # # Initialize subj, obj, and (subj, obj) tables
-    # prep_subj = np.zeros((len(subj), len(predicates)))
-    # prep_obj = np.zeros((len(obj), len(predicates)))
-    # prep_subj_obj = np.zeros((len(subj_and_obj), len(predicates)))
+    # Fill the tables (inputting 3 at once to reduce number of calls)
+    prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
 
-    # # Fill the tables (inputting 3 at once to save runtime)
-    # fill_tables(prep_obj, prep_subj, prep_subj_obj, predicates)
+    # Save obj, subj, subj_obj as pickle files
+    pickle_file(obj, "obj")
+    pickle_file(subj, "subj")
+    pickle_file(subj_obj, "subj_obj")
 
-    # # Save obj, subj, subj_obj as pickle files
-    # pickle_file(obj, "obj")
-    # pickle_file(subj, "subj")
-    # pickle_file(subj_obj, "subj_obj")
-
-    # # Save prep_obj, prep_subj, prep_subj_obj as pickle files
-    # pickle_file(prep_obj, "prep_obj")
-    # pickle_file(prep_subj, "prep_subj")
-    # pickle_file(prep_subj_obj, "prep_subj_obj")
-    #
-    # # prep_obj = to_sparse_matrix("prep_obj")
-    # # prep_subj = to_sparse_matrix("prep_subj")
-    # # prep_subj_obj = to_sparse_matrix("prep_subj_obj")
-    #
-    # # # Generate Pie Graphs for each table subj, obj, and (subj, obj)
-    # # to_pie_graph(prep_obj, obj, predicates)
-    # # to_pie_graph(prep_subj, subj, predicates)
-    # # to_pie_graph(prep_subj_obj, subj_and_obj, predicates)
+    # Save prep_obj, prep_subj, prep_subj_obj as pickle files
+    pickle_file(prep_obj, "prep_obj")
+    pickle_file(prep_subj, "prep_subj")
+    pickle_file(prep_subj_obj, "prep_subj_obj")
 
     # # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
     # to_pie_graph("subj_obj", predicates)
@@ -232,7 +208,7 @@ def main():
     # pickle_file(prep_most_frequent_subj_obj, "most_frequent_subj_obj")
 
     # Plot predicate most frequent obj/subj/subj_obj tables
-    to_prep_pie_graph("subj_obj", predicates)
+    # to_prep_pie_graph("subj_obj", predicates)
 
 
 if __name__ == "__main__":
