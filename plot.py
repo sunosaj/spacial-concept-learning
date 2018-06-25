@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.patches as mpatches
 
 
 def get_pred_data(pred):
@@ -33,7 +34,7 @@ def get_most_dominant_pred(table_name):
     return most_dominant_pred
 
 
-def plot(pred):
+def plot_normalized_centre_points(pred):
     # Get obj and subj centre points and normalize diffs
     x_normalized_diff = []
     y_normalized_diff = []
@@ -189,10 +190,12 @@ def word_to_vector(table_name, pred_order_name, model, vocab):
     word_vectors = []
     new_pred_order = []
     for i in range(len(words)):
+        # if (subj, obj)
         if isinstance(words[i], tuple):
             if words[i][0] in vocab and words[i][1] in vocab:
                 word_vectors.append(model[words[i][0]] - model[words[i][1]])
                 new_pred_order.append(preds[i])
+        # if subj, or obj
         else:
             if words[i] in vocab:
                 word_vectors.append(model[words[i]])
@@ -223,7 +226,8 @@ def reduce_dimensionality(vector_names, dominant_pred, reduction_method):
     # print('len(vector_predicates)', len(vector_predicates))
 
     # Number of dimensions to reduce to
-    n_dimensions = len(vectors[0]) - 1
+    n_dimensions = 43
+    print('n_dimensions', n_dimensions)
 
     if reduction_method == 'pca':
         pca = PCA(n_components=n_dimensions)
@@ -235,35 +239,76 @@ def reduce_dimensionality(vector_names, dominant_pred, reduction_method):
         new_vectors = vectors_embedded
 
     elif reduction_method == 'fda':
-        clf = LinearDiscriminantAnalysis(n_components=n_dimensions)
+        # pick another solver to set shrinkage = 0.5, and set n_components=k-1
+        clf = LinearDiscriminantAnalysis(solver='eigen', shrinkage=0.5, n_components=n_dimensions)
         clf.fit(vectors, vector_predicates)
         new_vectors = clf.transform(vectors)
+        print('fda new_vectors', new_vectors.shape)
 
     return new_vectors
 
 
-def plot_vectors(vectors_file_name, title, n_dimensions):
-    # Retrieve labels for each row in table
+def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions, predicates):
+    # Retrieve dimensionally reduced vectors for each subj/obj/subj-obj
     label_location = "pred_occurrences/" + vectors_file_name + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
+
+    # Retrieve corresponding most dominant predicate for each subj/obj/subj-obj
+    label_location = "pred_occurrences/" + vector_preds_file_name + ".p"
+    vector_preds = np.asarray(pickle.load(open(label_location, "rb")))
+
+    # Colors for each predicate
+    pred_to_color = {1: [predicates[1], 'black'], 11: [predicates[11], 'green'], 17: [predicates[17], 'violet'],
+                     20: [predicates[20], 'blue'], 23: [predicates[23], 'orange'], 25: [predicates[25], 'red'],
+                     37: [predicates[38], 'indigo'], 41: [predicates[41], 'yellow']}
+
+    preds = []
+    colors = []
+    for i in range(len(predicates)):
+        if i in pred_to_color:
+            preds.append(pred_to_color[i][0])
+            colors.append(pred_to_color[i][1])
+
+    handles_patches = [mpatches.Patch(color=colors[i], label="{:s}".format(preds[i])) for i in range(len(preds))]
+
+    print(vectors.shape)
 
     # Plot 2-d
     if n_dimensions == '2':
         plt.figure(figsize=(8, 8))
-        plt.plot(vectors[:, 0], vectors[:, 1], 'ro', markersize=0.5)
+        plt.legend(handles=handles_patches, ncol=2)
+
+        for i in range(len(vectors)):
+            if vector_preds[i] in pred_to_color:
+                plt.plot(vectors[i, 0], vectors[i, 1], marker='o', markersize=1, color=pred_to_color[vector_preds[i]][1])
+
         plt.title(title + ' 2d')
         plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_2d.pdf")
+
+        # plt.show()
 
     # Plot 3-d
     elif n_dimensions == '3':
         # plt.plot(vectors[:3, 0], vectors[:3, 1], 'ro', markersize=1)
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(vectors[:, 0], vectors[:, 1], vectors[:, 2], s=0.1, c='b')
+
+        for i in range(len(vectors)):
+            if vector_preds[i] in pred_to_color:
+                plt.plot(vectors[i, 0], vectors[i, 1], marker='o', markersize=1, color=pred_to_color[vector_preds[i]][1])
+
+        # ax.scatter(vectors[:, 0], vectors[:, 1], vectors[:, 2], s=0.1, c='b')
         plt.title(title + ' 3d')
         plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_3d.pdf")
 
-    plt.show()
+
+def find_longest_edge(predicates):
+    longest_edge = 0
+    for pred in predicates:
+        data = get_pred_data(pred)
+        for i in range(len(data)):
+            longest_edge = max(longest_edge, data.iloc[i, 3], data.iloc[i, 4], data.iloc[i, 10], data.iloc[i, 11])
+    return longest_edge
 
 
 def main():
@@ -275,7 +320,7 @@ def main():
 
     # # Plot each predicate by itself
     # for pred in predicates:
-    #     outlier_img_ids = plot(pred) #return outlier_img_ids for when want to check for weird images
+    #     outlier_img_ids = plot_normalized_centre_points(pred) #return outlier_img_ids for when want to check for weird images
 
     # Plot all predicates together, each with different colour
     # plot_all(predicates)
@@ -337,14 +382,14 @@ def main():
     # print("obj_vec_preds saved")
     # pickle_file(subj_obj_vec_preds, "subj_obj_vec_preds")
     # print("subj_obj_vec_preds saved")
-
+    #
     # Reduce dimensionality for each subj/obj/subj-obj and each pca/tsne/fda
-
+    #
     # subj_vec_reduced_pca = reduce_dimensionality('subj_vec', None, 'pca')
     # print("subj_vec_reduced_pca reduced")
     # pickle_file(subj_vec_reduced_pca, "subj_vec_reduced_pca")
     # print("subj_vec_reduced_pca saved")
-    #
+
     # subj_vec_reduced_tsne = reduce_dimensionality('subj_vec', None, 'tsne')
     # print("subj_vec_reduced_tsne reduced")
     # pickle_file(subj_vec_reduced_tsne, "subj_vec_reduced_tsne")
@@ -359,7 +404,7 @@ def main():
     # print("obj_vec_reduced_pca reduced")
     # pickle_file(obj_vec_reduced_pca, "obj_vec_reduced_pca")
     # print("obj_vec_reduced_pca saved")
-    #
+
     # obj_vec_reduced_tsne = reduce_dimensionality('obj_vec', None, 'tsne')
     # print("obj_vec_reduced_tsne reduced")
     # pickle_file(obj_vec_reduced_tsne, "obj_vec_reduced_tsne")
@@ -374,7 +419,7 @@ def main():
     # print("sbj_obj_vec_reduced_pca reduced")
     # pickle_file(subj_obj_vec_reduced_pca, "subj_obj_vec_reduced_pca")
     # print("subj_obj_vec_reduced_pca saved")
-    #
+
     # subj_obj_vec_reduced_tsne = reduce_dimensionality('subj_obj_vec', None, 'tsne')
     # print("subj_obj_vec_reduced_tsne reduced")
     # pickle_file(subj_obj_vec_reduced_tsne, "subj_obj_vec_reduced_tsne")
@@ -385,32 +430,36 @@ def main():
     # pickle_file(subj_obj_vec_reduced_fda, "subj_obj_vec_reduced_fda")
     # print("subj_obj_vec_reduced_fda saved")
 
-
     # Plot all dimensionality reduced plots
 
-    plot_vectors("subj_vec_reduced_pca", "Subjects: PCA", "2")
-    plot_vectors("obj_vec_reduced_pca", "Objects: PCA", "2")
-    plot_vectors("subj_obj_vec_reduced_pca", "Subjects - Objects: PCA", "2")
+    plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "2", predicates)
+    plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "2", predicates)
+    plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "2", predicates)
 
-    plot_vectors("subj_vec_reduced_tsne", "Subjects: t-SNE", "2")
-    plot_vectors("obj_vec_reduced_tsne", "Objects: t-SNE", "2")
-    plot_vectors("subj_obj_vec_reduced_tsne", "Subjects - Objects: t-SNE", "2")
+    plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "2", predicates)
+    plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "2", predicates)
+    plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "2", predicates)
 
-    plot_vectors("subj_vec_reduced_fda", "Subjects: FDA", "2")
-    plot_vectors("obj_vec_reduced_fda", "Objects: FDA", "2")
-    plot_vectors("subj_obj_vec_reduced_fda", "Subjects - Objects: FDA", "2")
-    #
-    # plot_vectors("subj_vec_reduced_pca", "Subjects: PCA", "3")
-    # plot_vectors("obj_vec_reduced_pca", "Objects: PCA", "3")
-    # plot_vectors("subj_obj_vec_reduced_pca", "Subjects - Objects: PCA", "3")
-    #
-    # plot_vectors("subj_vec_reduced_tsne", "Subjects: t-SNE", "3")
-    # plot_vectors("obj_vec_reduced_tsne", "Objects: t-SNE", "3")
-    # plot_vectors("subj_obj_vec_reduced_tsne", "Subjects - Objects: t-SNE", "3")
-    #
-    # plot_vectors("subj_vec_reduced_fda", "Subjects: FDA", "3")
-    # plot_vectors("obj_vec_reduced_fda", "Objects: FDA", "3")
-    # plot_vectors("subj_obj_vec_reduced_fda", "Subjects - Objects: FDA", "3")
+    plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "2", predicates)
+    plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "2", predicates)
+    plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "2", predicates)
+
+    plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "3", predicates)
+    plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "3", predicates)
+    plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "3", predicates)
+
+    plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "3", predicates)
+    plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "3", predicates)
+    plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "3", predicates)
+
+    plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "3", predicates)
+    plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "3", predicates)
+    plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "3", predicates)
+
+    # Get longest edge of all subjs and objs of all predicates
+    longest_edge = find_longest_edge(predicates)
+
+
 
 
 if __name__ == "__main__":
