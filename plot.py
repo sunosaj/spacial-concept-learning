@@ -146,37 +146,35 @@ def plot_all(predicates):
     plt.show()
 
 
-def box_images(image_ids, data):
-    for image_id in image_ids:
-        # Open image
-        image_address = 'images/' + str(image_id) + '.jpg'
-        im = np.array(Image.open(image_address), dtype=np.uint8)
-
-        # Box all relationships for this image_id
+def box_images(predicates):
+    for pred in predicates:
+        data = get_pred_data(pred)
         for i in range(len(data)):
-            if data.iloc[i, 0] == image_id:
-                # Create figure and axes
-                fig, ax = plt.subplots(1)
+            image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+            im = np.array(Image.open(image_address), dtype=np.uint8)
 
-                # Display the image
-                ax.imshow(im)
+            # Create figure and axes
+            fig, ax = plt.subplots(1)
 
-                # Create a Rectangle patch
-                obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
-                                            int(data.iloc[i, 3]), linewidth=1, edgecolor='r', facecolor='none')
-                subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
-                                             int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+            # Display the image
+            ax.imshow(im)
 
-                # Add the patch to the Axes
-                ax.add_patch(obj_box)
-                ax.add_patch(subj_box)
+            # Create a Rectangle patch
+            obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+                                        int(data.iloc[i, 3]), linewidth=1, edgecolor='r', facecolor='none')
+            subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+                                         int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
 
-                # Label obj and subj
-                plt.annotate("obj: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])))
-                plt.annotate("subj: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])))
+            # Add the patch to the Axes
+            ax.add_patch(obj_box)
+            ax.add_patch(subj_box)
 
-                plt.title(image_id)
-                plt.show()
+            # Label obj and subj
+            plt.annotate("obj: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])))
+            plt.annotate("subj: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])))
+
+            plt.title(pred + ": " + str(data.iloc[i, 0]))
+            plt.show()
 
 
 def word_to_vector(table_name, pred_order_name, model, vocab):
@@ -280,7 +278,8 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
 
         for i in range(len(vectors)):
             if vector_preds[i] in pred_to_color:
-                plt.plot(vectors[i, 0], vectors[i, 1], marker='o', markersize=1, color=pred_to_color[vector_preds[i]][1])
+                plt.plot([vectors[i, 0]], [vectors[i, 1]], marker='o', markersize=1,
+                         color=pred_to_color[vector_preds[i]][1])
 
         plt.title(title + ' 2d')
         plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_2d.pdf")
@@ -292,23 +291,82 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
         # plt.plot(vectors[:3, 0], vectors[:3, 1], 'ro', markersize=1)
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
+        plt.legend(handles=handles_patches, ncol=2)
 
         for i in range(len(vectors)):
+            # print(len(vectors))
             if vector_preds[i] in pred_to_color:
-                plt.plot(vectors[i, 0], vectors[i, 1], marker='o', markersize=1, color=pred_to_color[vector_preds[i]][1])
+                plt.plot([vectors[i, 0]], [vectors[i, 1]], [vectors[i, 2]], marker='o', markersize=1,
+                         color=pred_to_color[vector_preds[i]][1])
 
         # ax.scatter(vectors[:, 0], vectors[:, 1], vectors[:, 2], s=0.1, c='b')
         plt.title(title + ' 3d')
         plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_3d.pdf")
 
 
-def find_longest_edge(predicates):
+def find_longest(predicates):
     longest_edge = 0
+    longest_separation = 0
     for pred in predicates:
         data = get_pred_data(pred)
         for i in range(len(data)):
             longest_edge = max(longest_edge, data.iloc[i, 3], data.iloc[i, 4], data.iloc[i, 10], data.iloc[i, 11])
-    return longest_edge
+
+            # get max y
+            y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
+            y_diff_2 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13] + data.iloc[i, 10])
+            max_y = max(y_diff_1, y_diff_2, 0.5 * data.iloc[i, 3])
+
+            # get max x
+            x_diff_1 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12])
+            x_diff_2 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12] + data.iloc[i, 11])
+            max_x = max(x_diff_1, x_diff_2, 0.5 * data.iloc[i, 4])
+
+            # max separation
+            longest_separation = max(longest_separation, max_y, max_x)
+        print(pred, 'done')
+
+    return longest_edge, longest_separation
+
+
+def get_bounding_box_vectors(pred, decrease_factor, plot_size):
+    data = get_pred_data(pred)
+
+    for i in range(len(data)):
+        # create white plot of -normalized_longest_separation to +normalized_longest_separation
+        # plt.figure(figsize=(10, 10))
+        fig, ax = plt.subplots(1)
+        plt.axis([-plot_size, plot_size, -plot_size, plot_size])
+
+        # plot object bounding box at centre
+        # https://matplotlib.org/api/_as_gen/matplotlib.patches.Rectangle.html
+        # https://stackoverflow.com/questions/37435369/matplotlib-how-to-draw-a-rectangle-on-image
+        obj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * decrease_factor,
+                                     0 - 0.5 * int(data.iloc[i, 3]) * decrease_factor),
+                                    int(data.iloc[i, 4]) * decrease_factor, int(data.iloc[i, 3]) * decrease_factor,
+                                    linewidth=1, edgecolor='k', facecolor='none')
+
+        # plot subject relative to object
+        subj_x_relative = (int(data.iloc[i, 12]) - int(data.iloc[i, 5])) * decrease_factor
+        subj_y_relative = ((int(data.iloc[i, 6]) + int(data.iloc[i, 3])) -
+                            (int(data.iloc[i, 13]) + int(data.iloc[i, 10]))) * decrease_factor
+        subj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * decrease_factor + subj_x_relative,
+                                     0 - 0.5 * int(data.iloc[i, 3]) * decrease_factor + subj_y_relative),
+                                     int(data.iloc[i, 11]) * decrease_factor, int(data.iloc[i, 10]) * decrease_factor,
+                                     linewidth=1, edgecolor='k', facecolor='none')
+
+        ax.add_patch(obj_box)
+        ax.add_patch(subj_box)
+
+        # plt.annotate("obj", (0 - 0.5 * int(data.iloc[i, 4]) * decrease_factor,
+        #                      0 - 0.5 * int(data.iloc[i, 3]) * decrease_factor))
+        # plt.annotate("subj", (0 - 0.5 * int(data.iloc[i, 4]) * decrease_factor + subj_x_relative,
+        #                       0 - 0.5 * int(data.iloc[i, 3]) * decrease_factor + subj_y_relative))
+
+        # Keep plot graph square
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title(pred + ": " + str(data.iloc[i, 0]))
+        plt.show()
 
 
 def main():
@@ -330,10 +388,8 @@ def main():
     #       + " weird images")
     # box_images(outlier_img_ids)
 
-    # Check for images with numbers as labels for objects and subjects
-    # print(data.iloc[0, 1])
-    # img_ids = [285624]
-    # box_images(img_ids, data)
+    # Box all images in order of predicates
+    # box_images(predicates)
 
     # # Dimensionality Reduction
     #
@@ -432,34 +488,45 @@ def main():
 
     # Plot all dimensionality reduced plots
 
-    plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "2", predicates)
-    plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "2", predicates)
-    plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "2", predicates)
+    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "2", predicates)
+    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "2", predicates)
+    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "2", predicates)
+    #
+    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "2", predicates)
+    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "2", predicates)
+    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "2", predicates)
+    #
+    # plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "2", predicates)
+    # plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "2", predicates)
+    # plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "2", predicates)
 
-    plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "2", predicates)
-    plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "2", predicates)
-    plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "2", predicates)
-
-    plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "2", predicates)
-    plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "2", predicates)
-    plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "2", predicates)
-
-    plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "3", predicates)
-    plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "3", predicates)
-    plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "3", predicates)
-
-    plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "3", predicates)
-    plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "3", predicates)
-    plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "3", predicates)
-
-    plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "3", predicates)
-    plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "3", predicates)
-    plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "3", predicates)
-
+    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "3", predicates)
+    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "3", predicates)
+    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "3", predicates)
+    #
+    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "3", predicates)
+    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "3", predicates)
+    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "3", predicates)
+    #
+    # plot_vectors("subj_vec_reduced_fda", "subj_vec_preds", "Subjects: FDA", "3", predicates)
+    # plot_vectors("obj_vec_reduced_fda", "obj_vec_preds", "Objects: FDA", "3", predicates)
+    # plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "3", predicates)
+    #
     # Get longest edge of all subjs and objs of all predicates
-    longest_edge = find_longest_edge(predicates)
+    # longest_edge, longest_separation = find_longest(predicates)
+    longest_edge = 1281
+    longest_separation = 2273.0
+    # print('find_longest(predicates) done')
+    # print('longest_edge', longest_edge)
+    # print('longest_separation', longest_separation)
+    decrease_factor = 0.5 / longest_edge
+    normalized_longest_separation = longest_separation * decrease_factor
+    print('decrease_factor', decrease_factor)
+    print('normalized_longest_separation', normalized_longest_separation)
 
-
+    for pred in predicates:
+        get_bounding_box_vectors(pred, decrease_factor, normalized_longest_separation)
+    print('longest_edge', longest_edge)
 
 
 if __name__ == "__main__":
