@@ -12,6 +12,7 @@ from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
+import math
 
 
 def get_pred_data(pred):
@@ -149,10 +150,10 @@ def plot_all(predicates):
 def box_images(predicates):
     # # Box specific images
     # pred = 'in'
-    # i = 11529
+    # i = 83684
     #
     # data = get_pred_data(pred)
-    #
+    # # print(max(data.iloc[i, 3] * data.iloc[i, 4], data.iloc[i, 10] * data.iloc[i, 11]))
     # image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
     # im = np.array(Image.open(image_address), dtype=np.uint8)
     #
@@ -176,38 +177,56 @@ def box_images(predicates):
     # plt.annotate("obj: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])))
     # plt.annotate("subj: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])))
     #
-    # plt.title(pred + ": " + str(data.iloc[i, 0]))
+    # plt.title(pred + ": " + str(i))
     # plt.show()
 
     # Box all predicates
     for pred in predicates:
         data = get_pred_data(pred)
         for i in range(len(data)):
-            image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
-            im = np.array(Image.open(image_address), dtype=np.uint8)
+            # Decide whether row i fulfills rules #
+            factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
 
-            # Create figure and axes
-            fig, ax = plt.subplots(1)
+            # get max y
+            y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
+            y_diff_2 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - (data.iloc[i, 13] + data.iloc[i, 10]))
+            max_y = max(y_diff_1, y_diff_2, 0.5 * data.iloc[i, 3])
 
-            # Display the image
-            ax.imshow(im)
+            # get max x
+            x_diff_1 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12])
+            x_diff_2 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - (data.iloc[i, 12] + data.iloc[i, 11]))
+            max_x = max(x_diff_1, x_diff_2, 0.5 * data.iloc[i, 4])
 
-            # Create a Rectangle patch
-            obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
-                                        int(data.iloc[i, 3]), linewidth=1, edgecolor='r', facecolor='none')
-            subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
-                                         int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+            # max separation
+            longest_separation = max(max_y * factor, max_x * factor)
 
-            # Add the patch to the Axes
-            ax.add_patch(obj_box)
-            ax.add_patch(subj_box)
+            #######################################
+            if fulfills_rules(data.iloc[i,], longest_separation, factor):
+                image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+                im = np.array(Image.open(image_address), dtype=np.uint8)
 
-            # Label obj and subj
-            plt.annotate("obj: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])))
-            plt.annotate("subj: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])))
+                # Create figure and axes
+                fig, ax = plt.subplots(1)
 
-            plt.title(pred + ": " + str(data.iloc[i, 0]))
-            plt.show()
+                # Display the image
+                ax.imshow(im)
+
+                # Create a Rectangle patch
+                obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+                                            int(data.iloc[i, 3]), linewidth=1, edgecolor='r', facecolor='none')
+                subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+                                             int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+
+                # Add the patch to the Axes
+                ax.add_patch(obj_box)
+                ax.add_patch(subj_box)
+
+                # Label obj and subj
+                plt.annotate("obj: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])))
+                plt.annotate("subj: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])))
+
+                plt.title(pred + ": " + str(i))
+                plt.show()
 
 
 def word_to_vector(table_name, pred_order_name, model, vocab):
@@ -337,13 +356,12 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
         plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_3d.pdf")
 
 
-def find_longest(predicates):
+def find_longest_separation(predicates):
     # might also want to look at which image contains longest_edge and longest_separation
     # so get image id too when u update max
 
-    # longest_edge = 0
     # longest_separation = 0
-    # pred = 'below'
+    # pred = 'in'
     # i = 179
     #
     # data = get_pred_data(pred)
@@ -385,18 +403,22 @@ def find_longest(predicates):
     # return longest_edge, longest_separation, longest_edge_pred, longest_edge_pred_index, longest_edge_img_id, \
     #        longest_separation_pred, longest_separation_pred_index, longest_separation_img_id
 
-    longest_edge = 0
     longest_separation = 0
+    # longest_separation_pred = predicates[0]
+    # longest_separation_pred_index = 0
+    # longest_separation_img_id = 0
+
+    total_lines_of_data = 0
+    total_used_lines_of_data = 0
     for pred in predicates:
         data = get_pred_data(pred)
+        pred_lines_of_data = len(data)
+        pred_used_lines_of_data = 0
+        total_lines_of_data += pred_lines_of_data
         for i in range(len(data)):
-            # get longest edge
-            old_longest_edge = longest_edge
-            longest_edge = max(longest_edge, data.iloc[i, 3], data.iloc[i, 4], data.iloc[i, 10], data.iloc[i, 11])
-            if longest_edge > old_longest_edge:
-                longest_edge_pred = pred
-                longest_edge_pred_index = i
-                longest_edge_img_id = data.iloc[i, 0]
+            # Proceed with this line of data only if it fulfills certain rules
+
+            factor = math.sqrt(0.5 / (int(data.iloc[i, 3]) * int(data.iloc[i, 4])))
 
             # get max y
             y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
@@ -410,16 +432,27 @@ def find_longest(predicates):
 
             # max separation
             old_longest_separation = longest_separation
-            longest_separation = max(longest_separation, max_y, max_x)
-            if longest_separation > old_longest_separation:
-                longest_separation_pred = pred
-                longest_separation_pred_index = i
-                longest_separation_img_id = data.iloc[i, 0]
+            new_longest_separation = max(longest_separation, max_y * factor, max_x * factor)
+            if fulfills_rules(data.iloc[i, ], new_longest_separation, factor):
+                if new_longest_separation > old_longest_separation:
+                    longest_separation = new_longest_separation
+                    longest_separation_pred = pred
+                    longest_separation_pred_index = i
+                    longest_separation_img_id = data.iloc[i, 0]
+                pred_used_lines_of_data += 1
 
+        total_used_lines_of_data += pred_used_lines_of_data
+
+        print('pred_lines_of_data', pred_lines_of_data)
+        print('pred_used_lines_of_data', pred_used_lines_of_data)
+        print('percent used', pred_used_lines_of_data / pred_lines_of_data)
         print(pred, 'done')
 
-    return longest_edge, longest_separation, longest_edge_pred, longest_edge_pred_index, longest_edge_img_id, \
-           longest_separation_pred, longest_separation_pred_index, longest_separation_img_id
+    print('total_lines_of_data', total_lines_of_data)
+    print('used_lines_of_data', total_used_lines_of_data)
+    print('percent used', total_used_lines_of_data / total_lines_of_data)
+
+    return longest_separation, longest_separation_pred, longest_separation_pred_index, longest_separation_img_id
 
 
 def get_bounding_box_vectors(pred, decrease_factor, plot_size):
@@ -496,12 +529,144 @@ def get_bounding_box_vectors(pred, decrease_factor, plot_size):
         # Return these arrays, as well as their corresponding predicate for FDA later
 
 
+def get_normalized_bounding_box_vectors(pred, plot_size):
+    # # Get bounding box of specific image for specific predicate
+    # pred = 'in'
+    # i = 148765
+    #
+    # data = get_pred_data(pred)
+    #
+    # # create white plot of -normalized_longest_separation to +normalized_longest_separation
+    # fig, ax = plt.subplots(1)
+    # plt.axis([-plot_size, plot_size, -plot_size, plot_size])
+    #
+    # factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
+    #
+    # # plot object bounding box at centre
+    # # https://matplotlib.org/api/_as_gen/matplotlib.patches.Rectangle.html
+    # # https://stackoverflow.com/questions/37435369/matplotlib-how-to-draw-a-rectangle-on-image
+    # obj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * factor,
+    #                              0 - 0.5 * int(data.iloc[i, 3]) * factor),
+    #                             int(data.iloc[i, 4]) * factor, int(data.iloc[i, 3]) * factor,
+    #                             linewidth=1, edgecolor='b', facecolor='none')
+    #
+    # # plot subject relative to object
+    # subj_x_relative = (int(data.iloc[i, 12]) - int(data.iloc[i, 5])) * factor
+    # subj_y_relative = ((int(data.iloc[i, 6]) + int(data.iloc[i, 3])) -
+    #                    (int(data.iloc[i, 13]) + int(data.iloc[i, 10]))) * factor
+    # subj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * factor + subj_x_relative,
+    #                              0 - 0.5 * int(data.iloc[i, 3]) * factor + subj_y_relative),
+    #                              int(data.iloc[i, 11]) * factor, int(data.iloc[i, 10]) * factor,
+    #                              linewidth=1, edgecolor='r', facecolor='none')
+    #
+    # ax.add_patch(obj_box)
+    # ax.add_patch(subj_box)
+    #
+    # # Keep plot graph square
+    # plt.gca().set_aspect('equal', adjustable='box')
+    # plt.title(pred + ": " + str(i))
+    # plt.show()
+
+    # Get bounding boxes for all images of given predicate
+    data = get_pred_data(pred)
+
+    # fig, ax = plt.subplots(1)
+    # plt.axis([-plot_size, plot_size, -plot_size, plot_size])
+
+    for i in range(len(data)):
+        # create white plot of -normalized_longest_separation to +normalized_longest_separation
+        # fig, ax = plt.subplots(1)
+        # plt.axis([-plot_size, plot_size, -plot_size, plot_size])
+
+        # Decide whether row i fulfills rules #
+        factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
+
+        # get max y
+        y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
+        y_diff_2 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - (data.iloc[i, 13] + data.iloc[i, 10]))
+        max_y = max(y_diff_1, y_diff_2, 0.5 * data.iloc[i, 3])
+
+        # get max x
+        x_diff_1 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12])
+        x_diff_2 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - (data.iloc[i, 12] + data.iloc[i, 11]))
+        max_x = max(x_diff_1, x_diff_2, 0.5 * data.iloc[i, 4])
+
+        # max separation
+        longest_separation = max(max_y * factor, max_x * factor)
+
+        #######################################
+        if fulfills_rules(data.iloc[i, ], longest_separation, factor):
+            # create white plot of -normalized_longest_separation to +normalized_longest_separation
+            fig, ax = plt.subplots(1)
+            plt.axis([-plot_size, plot_size, -plot_size, plot_size])
+
+            # plot object bounding box at centre
+            # https://matplotlib.org/api/_as_gen/matplotlib.patches.Rectangle.html
+            # https://stackoverflow.com/questions/37435369/matplotlib-how-to-draw-a-rectangle-on-image
+            obj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * factor,
+                                         0 - 0.5 * int(data.iloc[i, 3]) * factor),
+                                        int(data.iloc[i, 4]) * factor, int(data.iloc[i, 3]) * factor,
+                                        linewidth=1, edgecolor='b', facecolor='none')
+
+            # plot subject relative to object
+            subj_x_relative = (int(data.iloc[i, 12]) - int(data.iloc[i, 5])) * factor
+            subj_y_relative = ((int(data.iloc[i, 6]) + int(data.iloc[i, 3])) -
+                               (int(data.iloc[i, 13]) + int(data.iloc[i, 10]))) * factor
+            subj_box = patches.Rectangle((0 - 0.5 * int(data.iloc[i, 4]) * factor + subj_x_relative,
+                                         0 - 0.5 * int(data.iloc[i, 3]) * factor + subj_y_relative),
+                                         int(data.iloc[i, 11]) * factor, int(data.iloc[i, 10]) * factor,
+                                         linewidth=1, edgecolor='r', facecolor='none')
+
+            ax.add_patch(obj_box)
+            ax.add_patch(subj_box)
+
+            # Keep plot graph square
+            plt.gca().set_aspect('equal', adjustable='box')
+            # plt.title(pred + ": " + str(i))
+            # plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".png", dpi=50)
+
+            # ax = fig.gca()
+            # ax.set_xticks(np.arange(-1, 1, 0.01))
+            # ax.set_yticks(np.arange(-1, 1., 0.01))
+            # plt.grid(True)
+            # plt.rc('grid', linestyle="-", color='black')
+            # plt.axis('off')
+
+            # plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".pdf", bbox_inches='tight')
+            plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".png", dpi=55,
+                        bbox_inches='tight')
+            plt.show()
+
+    # plt.gca().set_aspect('equal', adjustable='box')
+    # plt.title(pred + ": " + str(i))
+    # plt.savefig("new_pred_plot/" + pred + "bounding_box_plot.pdf")
+    # plt.show()
+
+        # Turn plot into one long 300-dimension 1d array by __
+        # Return these arrays, as well as their corresponding predicate for FDA later
+
+
+def fulfills_rules(row, longest_separation, factor):
+    min_pixels = 3
+    if row[3] <= min_pixels or row[4] <= min_pixels or row[10] <= min_pixels or row[11] <= min_pixels:
+        return False
+    if longest_separation > 1:
+        return False
+    # if (max(row[3] * row[4], row[10] * row[11]) / min(row[3] * row[4], row[10] * row[11])) > 3:
+    #     return False
+    # if (longest_separation / math.sqrt(max(row[3] * row[4] * (factor ** 2), row[10] * row[11] * (factor ** 2)))) > 5:
+    #     return False
+    return True
+
+
 def main():
     predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
                   "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
                   "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
+
+    predicates = ['on']
 
     # # Plot each predicate by itself
     # for pred in predicates:
@@ -516,7 +681,7 @@ def main():
     # box_images(outlier_img_ids)
 
     # # Box all images in order of predicates
-    box_images(predicates)
+    # box_images(predicates)
 
     # # Dimensionality Reduction
     #
@@ -640,28 +805,28 @@ def main():
     # plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: FDA", "3", predicates)
     #
     # Get longest edge of all subjs and objs of all predicates
-    # longest_edge, longest_separation, longest_edge_pred, longest_edge_pred_index, longest_edge_img_id, \
-    #     longest_separation_pred, longest_separation_pred_index, longest_separation_img_id = find_longest(predicates)
-    longest_edge = 1281
-    longest_separation = 1126.0
+    # longest_separation, longest_separation_pred, longest_separation_pred_index, longest_separation_img_id \
+    #     = find_longest_separation(predicates)
+    # longest_edge = 1281
+    # longest_separation = 1126.0
     # print('find_longest(predicates) done')
-    # print('longest_edge', longest_edge)
     # print('longest_separation', longest_separation)
-    # print('longest_edge_pred', longest_edge_pred)
-    # print('longest_edge_pred_index', longest_edge_pred_index)
-    # print('longest_edge_img_id', longest_edge_img_id)
     # print('longest_separation_pred', longest_separation_pred)
     # print('longest_separation_pred_index', longest_separation_pred_index)
     # print('longest_separation_img_id', longest_separation_img_id)
 
-    decrease_factor = 0.5 / longest_edge
-    normalized_longest_separation = longest_separation * decrease_factor
-    print('decrease_factor', decrease_factor)
-    print('normalized_longest_separation', normalized_longest_separation)
+    # decrease_factor = 0.5 / longest_edge
+    # normalized_longest_separation = longest_separation * decrease_factor
+    # print('decrease_factor', decrease_factor)
+    # print('normalized_longest_separation', normalized_longest_separation)
+
+    # for pred in predicates:
+    #     get_bounding_box_vectors(pred, decrease_factor, normalized_longest_separation)
+    # print('longest_edge', longest_edge)
 
     for pred in predicates:
-        get_bounding_box_vectors(pred, decrease_factor, normalized_longest_separation)
-    print('longest_edge', longest_edge)
+        get_normalized_bounding_box_vectors(pred, 1)
+    # print('longest_edge', longest_edge)
 
 
 if __name__ == "__main__":
