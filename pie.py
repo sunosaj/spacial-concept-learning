@@ -35,6 +35,8 @@ def get_obj_and_subj(predicates):
 
 
 def fill_tables(obj, subj, subj_obj, predicates):
+    # Fill tables of obj, subj, and subj_obj where each row has counts of the number of appearances of each predicate
+    # for each unique thing
     prep_subj = np.zeros((len(subj), len(predicates)))
     prep_obj = np.zeros((len(obj), len(predicates)))
     prep_subj_obj = np.zeros((len(subj_obj), len(predicates)))
