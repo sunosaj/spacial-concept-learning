@@ -150,96 +150,153 @@ def plot_all(predicates):
     plt.show()
 
 
-def box_images(predicates):
-    # # Box specific images
-    # pred = 'on'
-    # i = 1473
+def box_images(pred):
+    # Box specific images
+    pred = 'in'
+
+    data = get_pred_data(pred)
+
+    # weird images:
+    # 43, 114
+
+    for i in range(len(data)):
+        # print(max(data.iloc[i, 3] * data.iloc[i, 4], data.iloc[i, 10] * data.iloc[i, 11]))
+        image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+        im = np.array(Image.open(image_address), dtype=np.uint8)
+
+        # Create figure and axes
+        fig, ax = plt.subplots(1)
+
+        # Display the image
+        ax.imshow(im)
+
+        # Create a Rectangle patch
+        obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+                                    int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
+        subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+                                     int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+
+        # Add the patch to the Axes
+        ax.add_patch(obj_box)
+        ax.add_patch(subj_box)
+
+        # # Add centroids
+        # plt.plot(int(data.iloc[i, 5]) + (0.5 * int(data.iloc[i, 4])),
+        #          int(data.iloc[i, 6]) + (0.5 * int(data.iloc[i, 3])), 'bo', markersize=3)
+        # plt.plot(int(data.iloc[i, 12]) + (0.5 * int(data.iloc[i, 11])),
+        #          int(data.iloc[i, 13]) + (0.5 * int(data.iloc[i, 10])), 'ro', markersize=3)
+
+
+        # Label obj and subj
+        plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
+        plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='k')
+
+
+        # Colour in overlap area
+        subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
+
+        overlap_width = 0
+        overlap_height = 0
+        overlap_x = 0
+        overlap_y = 0
+        # subj_y <= obj_y and subj_y + subj_h > obj_y
+        if (float(data.iloc[i, 13]) <= float(data.iloc[i, 6])) and \
+                (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
+            overlap_y = data.iloc[i, 6]
+            # subj_y + subj_h > obj_y + obj_h
+            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+                overlap_height = float(data.iloc[i, 3])
+            else:
+                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
+        # subj_y > obj_y and subj_y < obj_y + obj_h
+        elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
+                float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
+            overlap_y = data.iloc[i, 13]
+            # subj_y + subj_h > obj_y + obj_h
+            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+                overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
+            else:
+                overlap_height = float(data.iloc[i, 10])
+
+        # subj_x <= obj_x and subj_x + subj_w > obj_x
+        if (float(data.iloc[i, 12]) <= float(data.iloc[i, 5])) and \
+                (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
+            overlap_x = data.iloc[i, 5]
+            # subj_x + subj_w > obj_x + obj_w
+            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+                overlap_width = float(data.iloc[i, 4])
+            else:
+                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
+        # subj_x > obj_x and subj_x < obj_x + obj_w
+        elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
+                float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+            overlap_x = data.iloc[i, 12]
+            # subj_x + subj_w > obj_x + obj_w
+            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+                overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
+            else:
+                overlap_width = float(data.iloc[i, 11])
+
+        overlap_area = overlap_width * overlap_height
+        amount_overlap = abs(overlap_area / subj_area)
+
+        rect1 = patches.Rectangle((overlap_x, overlap_y), overlap_width, overlap_height, color='yellow')
+        ax.add_patch(rect1)
+        print(str(i) + ": " + str(amount_overlap))
+        plt.title(pred + ' overlap: ' + str(amount_overlap))
+        # plt.title('Preposition: ' + pred)
+        # plt.title(pred + ": " + str(i))
+        plt.show()
+
+    # # Box all predicates
+    # for pred in predicates:
+    #     data = get_pred_data(pred)
+    #     for i in range(0, len(data)):
+    #         # Decide whether row i fulfills rules #
+    #         factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
     #
-    # data = get_pred_data(pred)
-    # # print(max(data.iloc[i, 3] * data.iloc[i, 4], data.iloc[i, 10] * data.iloc[i, 11]))
-    # image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
-    # im = np.array(Image.open(image_address), dtype=np.uint8)
+    #         # get max y
+    #         y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
+    #         y_diff_2 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - (data.iloc[i, 13] + data.iloc[i, 10]))
+    #         max_y = max(y_diff_1, y_diff_2, 0.5 * data.iloc[i, 3])
     #
-    # # Create figure and axes
-    # fig, ax = plt.subplots(1)
+    #         # get max x
+    #         x_diff_1 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12])
+    #         x_diff_2 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - (data.iloc[i, 12] + data.iloc[i, 11]))
+    #         max_x = max(x_diff_1, x_diff_2, 0.5 * data.iloc[i, 4])
     #
-    # # Display the image
-    # ax.imshow(im)
+    #         # max separation
+    #         longest_separation = max(max_y * factor, max_x * factor)
     #
-    # # Create a Rectangle patch
-    # obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
-    #                             int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
-    # subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
-    #                              int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+    #         #######################################
+    #         if fulfills_rules(data.iloc[i,], longest_separation, factor):
+    #             image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+    #             im = np.array(Image.open(image_address), dtype=np.uint8)
     #
-    # # Add the patch to the Axes
-    # ax.add_patch(obj_box)
-    # ax.add_patch(subj_box)
+    #             # Create figure and axes
+    #             fig, ax = plt.subplots(1)
     #
-    # # # Add centroids
-    # # plt.plot(int(data.iloc[i, 5]) + (0.5 * int(data.iloc[i, 4])),
-    # #          int(data.iloc[i, 6]) + (0.5 * int(data.iloc[i, 3])), 'bo', markersize=3)
-    # # plt.plot(int(data.iloc[i, 12]) + (0.5 * int(data.iloc[i, 11])),
-    # #          int(data.iloc[i, 13]) + (0.5 * int(data.iloc[i, 10])), 'ro', markersize=3)
+    #             # Display the image
+    #             ax.imshow(im)
     #
+    #             # Create a Rectangle patch
+    #             obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+    #                                         int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
+    #             subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+    #                                          int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
     #
-    # # Label obj and subj
-    # plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
-    # plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='k')
+    #             # Add the patch to the Axes
+    #             ax.add_patch(obj_box)
+    #             ax.add_patch(subj_box)
     #
-    # plt.title('Preposition: ' + pred)
-    # # plt.title(pred + ": " + str(i))
-    # plt.show()
-
-    # Box all predicates
-    for pred in predicates:
-        data = get_pred_data(pred)
-        for i in range(332, len(data)):
-            # Decide whether row i fulfills rules #
-            factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
-
-            # get max y
-            y_diff_1 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - data.iloc[i, 13])
-            y_diff_2 = abs(data.iloc[i, 6] + (0.5 * data.iloc[i, 3]) - (data.iloc[i, 13] + data.iloc[i, 10]))
-            max_y = max(y_diff_1, y_diff_2, 0.5 * data.iloc[i, 3])
-
-            # get max x
-            x_diff_1 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - data.iloc[i, 12])
-            x_diff_2 = abs(data.iloc[i, 5] + (0.5 * data.iloc[i, 4]) - (data.iloc[i, 12] + data.iloc[i, 11]))
-            max_x = max(x_diff_1, x_diff_2, 0.5 * data.iloc[i, 4])
-
-            # max separation
-            longest_separation = max(max_y * factor, max_x * factor)
-
-            #######################################
-            if fulfills_rules(data.iloc[i,], longest_separation, factor):
-                image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
-                im = np.array(Image.open(image_address), dtype=np.uint8)
-
-                # Create figure and axes
-                fig, ax = plt.subplots(1)
-
-                # Display the image
-                ax.imshow(im)
-
-                # Create a Rectangle patch
-                obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
-                                            int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
-                subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
-                                             int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
-
-                # Add the patch to the Axes
-                ax.add_patch(obj_box)
-                ax.add_patch(subj_box)
-
-                # Label obj and subj
-                plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
-                plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='w')
-
-                plt.title("Preposition: " + pred)
-                # plt.title(pred + ": " + str(i))
-                print(str(i))
-                plt.show()
+    #             # Label obj and subj
+    #             plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
+    #             plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='w')
+    #
+    #             plt.title("Preposition: " + pred)
+    #             # plt.title(pred + ": " + str(i))
+    #             print(str(i))
+    #             plt.show()
 
 
 def word_to_vector(table_name, pred_order_name, model, vocab):
@@ -256,7 +313,7 @@ def word_to_vector(table_name, pred_order_name, model, vocab):
         # if (subj, obj)
         if isinstance(words[i], tuple):
             if words[i][0] in vocab and words[i][1] in vocab:
-                word_vectors.append(model[words[i][0]] - model[words[i][1]])
+                word_vectors.append(model[words[i][0]] + model[words[i][1]])
                 new_pred_order.append(preds[i])
         # if subj, or obj
         else:
@@ -321,6 +378,14 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
     vector_preds = np.asarray(pickle.load(open(label_location, "rb")))
 
     print('hi1')
+    print(len(vectors))
+    print(len(vector_preds))
+    print(vectors[0, 0], vectors[0, 1])
+    print(vectors[1, 0], vectors[1, 1])
+    print(vectors[2, 0], vectors[2, 1])
+    print(vectors)
+    # plt.plot(vectors[0, 0], vectors[0, 1], 'bo', markersize=10)
+    # plt.show()
 
     # Colors for each predicate
     # pred_to_color = {1: [predicates[1], 'black'], 11: [predicates[11], 'green'], 17: [predicates[17], 'violet'],
@@ -356,59 +421,59 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
         kde_x = []
         kde_y = []
 
-        # for i in range(len(vectors)):
-        #     if vector_preds[i] == 20 or vector_preds[i] == 25:
-        #         if vector_preds[i] == 20:
-        #             plt.plot(vectors[i, 0], vectors[i, 1], 'bo', markersize=1)
-        #         elif vector_preds[i] == 25:
-        #             plt.plot(vectors[i, 0], vectors[i, 1], 'ro', markersize=1)
-        #         kde_x.append(vectors[i, 0])
-        #         kde_y.append((vectors[i, 1]))
+        for i in range(len(vectors)):
+            if vector_preds[i] == 20 or vector_preds[i] == 25:
+                if vector_preds[i] == 20:
+                    plt.plot(vectors[i, 0], vectors[i, 1], 'bo', markersize=1)
+                # if vector_preds[i] == 25:
+                #     plt.plot(vectors[i, 0], vectors[i, 1], 'ro', markersize=1)
+                    kde_x.append(vectors[i, 0])
+                    kde_y.append((vectors[i, 1]))
 
         # IN
-        plt.plot(vectors[114974:340327, 0], vectors[114974:340327, 1], 'bo', markersize=1)
-        kde_x.append(vectors[114974:340327, 0])
-        kde_y.append((vectors[114974:340327, 1]))
+        # plt.plot(vectors[114974:340327, 0], vectors[114974:340327, 1], 'bo', markersize=1)
+        # kde_x.append(vectors[114974:340327, 0])
+        # kde_y.append((vectors[114974:340327, 1]))
 
-        # ON
-        plt.plot(vectors[373986:776315, 0], vectors[373986:776315, 1], 'ro', markersize=1)
-        kde_x.append(vectors[373986:776315, 0])
-        kde_y.append((vectors[373986:776315, 1]))
-
-        print('hi2')
-        plt.title(title + ' 2d')
-        # plt.axis([-1000, 1000, -1000, 1000])
+        # # ON
+        # plt.plot(vectors[373986:776315, 0], vectors[373986:776315, 1], 'ro', markersize=1)
+        # kde_x.append(vectors[373986:776315, 0])
+        # kde_y.append((vectors[373986:776315, 1]))
+        #
+        # print('hi2')
+        # plt.title(title + ' 2d')
+        # # plt.axis([-1000, 1000, -1000, 1000])
         plt.gca().set_aspect('equal', adjustable='box')
-
+        #
         # Add x, y axis
         plt.axhline(linewidth=0.5, color='k')
         plt.axvline(linewidth=0.5, color='k')
-
-        # Legend
-        blue_patch = mpatches.Patch(color='blue', label='in')
-        red_patch = mpatches.Patch(color='red', label='on')
-        plt.legend(handles=[blue_patch, red_patch])
-
-        # plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_2d.pdf")
-
-        # # Kernel Density Estimator #
-        # plt.subplot(1, 2, 2)
-        # plt.axis([-2, 2, -2, 2])
         #
-        # kde_x_normalized_diff = np.asarray(kde_x)
-        # kde_y_normalized_diff = np.asarray(kde_y)
+        # # Legend
+        # blue_patch = mpatches.Patch(color='blue', label='in')
+        # red_patch = mpatches.Patch(color='red', label='on')
+        # plt.legend(handles=[blue_patch, red_patch])
         #
-        # k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
-        # xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
-        #          kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
-        # zi = k(np.vstack([xi.flatten(), yi.flatten()]))
-        #
-        # plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
-        # plt.axhline(linewidth=0.5, color='k')
-        # plt.axvline(linewidth=0.5, color='k')
-        # plt.gca().set_aspect('equal', adjustable='box')
-        # plt.colorbar()
-        ############################
+        # # plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_2d.pdf")
+
+        # Kernel Density Estimator #
+        plt.subplot(1, 2, 2)
+        plt.axis([-2, 2, -2, 2])
+
+        kde_x_normalized_diff = np.asarray(kde_x)
+        kde_y_normalized_diff = np.asarray(kde_y)
+
+        k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
+        xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
+                 kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
+        zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+
+        plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
+        plt.axhline(linewidth=0.5, color='k')
+        plt.axvline(linewidth=0.5, color='k')
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.colorbar()
+        # ############################
 
         plt.show()
 
@@ -751,10 +816,9 @@ def get_feature_vectors(pred):
     feature_vectors = []
 
     for i in range(len(data)):
-        obj_area = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) * (float(data.iloc[i, 6]) + float(data.iloc[i, 3]))
+        subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
 
         factor = 1 / math.sqrt(data.iloc[i, 4] * data.iloc[i, 3])
-        # factor = 1
 
         x_diff = (float(data.iloc[i, 12]) - float(data.iloc[i, 5])) * factor
         y_diff = (float(data.iloc[i, 13]) - float(data.iloc[i, 6])) * factor
@@ -767,43 +831,47 @@ def get_feature_vectors(pred):
 
         overlap_width = 0
         overlap_height = 0
+        # subj_y < obj_y and subj_y + subj_h > obj_y
         if (float(data.iloc[i, 13]) < float(data.iloc[i, 6])) and \
                 (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
+            # subj_y + subj_h > obj_y + obj_h
             if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
-                overlap_height = (float(data.iloc[i, 6]) - float(data.iloc[i, 13]))
+                overlap_height = float(data.iloc[i, 3])
             else:
-                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - \
-                            (float(data.iloc[i, 6]) - float(data.iloc[i, 13]))
+                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
+        # subj_y > obj_y and subj_y < obj_y + obj_h
         elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
-                (float(data.iloc[i, 6]) + float(data.iloc[i, 3])) > float(data.iloc[i, 13]):
-            if (float(data.iloc[i, 6]) + float(data.iloc[i, 3])) > (float(data.iloc[i, 13]) + float(data.iloc[i, 10])):
-                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10])
+                float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
+            # subj_y + subj_h > obj_y + obj_h
+            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+                overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
             else:
-                overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - \
-                            (float(data.iloc[i, 13]) - float(data.iloc[i, 6]))
+                overlap_height = float(data.iloc[i, 10])
 
+        # subj_x < obj_x and subj_x + subj_w > obj_x
         if (float(data.iloc[i, 12]) < float(data.iloc[i, 5])) and \
                 (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
+            # subj_x + subj_w > obj_x + obj_w
             if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-                overlap_width = float(data.iloc[i, 5]) + float(data.iloc[i, 4])
+                overlap_width = float(data.iloc[i, 4])
             else:
-                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - \
-                            (float(data.iloc[i, 5]) - float(data.iloc[i, 12]))
+                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
+        # subj_x > obj_x and subj_x < obj_x + obj_w
         elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
-                (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) > float(data.iloc[i, 12]):
-            if (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) > (float(data.iloc[i, 12]) + float(data.iloc[i, 11])):
-                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11])
+                float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+            # subj_x + subj_w > obj_x + obj_w
+            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+                overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
             else:
-                overlap_width = float(data.iloc[i, 5]) + float(data.iloc[i, 4]) - \
-                            (float(data.iloc[i, 12]) - float(data.iloc[i, 5]))
+                overlap_width = float(data.iloc[i, 11])
 
         overlap_area = overlap_width * overlap_height
         # print('overlap_area', overlap_area, 'obj_area', obj_area)
-        amount_overlap = abs(overlap_area / obj_area)
+        amount_overlap = abs(overlap_area / subj_area)
 
         # print('amount_overlap', amount_overlap)
-        if amount_overlap > 1:
-            # print('something is wrong')
+        if amount_overlap > 1 or amount_overlap < 0:
+            print('something is wrong')
             return
         feature_vector = [x_diff, y_diff, x_cent_diff, y_cent_diff, amount_overlap, width_diff, height_diff, area_ratio]
 
@@ -845,7 +913,7 @@ def dim_reduc_feat_vecs(predicates):
     print(len(new_vectors))
     print(len(feat_vecs_preds))
 
-    return new_vectors, feat_vecs_preds
+    return feat_vecs, new_vectors, feat_vecs_preds
 
 
 def plot_feature_vectors(vectors_file_name, vector_preds_file_name, predicates):
@@ -867,52 +935,62 @@ def plot_feature_vectors(vectors_file_name, vector_preds_file_name, predicates):
 
     # IN 114974:340327
     # ON 373986:776315
-    plt.subplot(1, 2, 1)
-    plt.gca().set_aspect('equal', adjustable='box')
 
-    # plt.plot(vectors[114974:340327, 0], vectors[114974:340327, 1], 'bo', markersize=1)
-    plt.plot(vectors[373986:776315, 0], vectors[373986:776315, 1], 'ro', markersize=1)
-
-
-    # Add x, y axis
-    plt.axhline(linewidth=0.5, color='k')
-    plt.axvline(linewidth=0.5, color='k')
-
-    # Kernel Density Estimator
-    plt.subplot(1, 2, 2)
-    plt.axis([-10, 10, -10, 10])
-
-    # kde_x_normalized_diff = vectors[114974:340327, 0]
-    # kde_y_normalized_diff = vectors[114974:340327, 1]
-
-    kde_x_normalized_diff = vectors[373986:776315, 0]
-    kde_y_normalized_diff = vectors[373986:776315, 1]
-
-    k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
-    xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
-             kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
-    zi = k(np.vstack([xi.flatten(), yi.flatten()]))
-
-    plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
-    plt.axhline(linewidth=0.5, color='k')
-    plt.axvline(linewidth=0.5, color='k')
-    plt.gca().set_aspect('equal', adjustable='box')
-
-    plt.colorbar()
-    ###########################
-
-    plt.show()
-
-
-    # fit = stats.norm.pdf(vectors, np.mean(vectors), np.std(vectors))  # this is a fitting indeed
+    # # 2-D ######################################################
+    # plt.subplot(1, 2, 1)
+    # plt.gca().set_aspect('equal', adjustable='box')
     #
-    # pl.plot(vectors, fit, 'o')
-    # # plt.title()
-    # #
-    # pl.hist(vectors, normed=True)  # use this to draw histogram of your data
+    # # plt.plot(vectors[114974:340327, 0], vectors[114974:340327, 1], 'bo', markersize=1)
+    # plt.plot(vectors[373986:776315, 0], vectors[373986:776315, 1], 'ro', markersize=1)
     #
-    # pl.show()
+    #
+    # # Add x, y axis
+    # plt.axhline(linewidth=0.5, color='k')
+    # plt.axvline(linewidth=0.5, color='k')
+    #
+    # # Kernel Density Estimator
+    # plt.subplot(1, 2, 2)
+    # plt.axis([-10, 10, -10, 10])
+    #
+    # # kde_x_normalized_diff = vectors[114974:340327, 0]
+    # # kde_y_normalized_diff = vectors[114974:340327, 1]
+    #
+    # kde_x_normalized_diff = vectors[373986:776315, 0]
+    # kde_y_normalized_diff = vectors[373986:776315, 1]
+    #
+    # k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
+    # xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
+    #          kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
+    # zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+    #
+    # plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
+    # plt.axhline(linewidth=0.5, color='k')
+    # plt.axvline(linewidth=0.5, color='k')
+    # plt.gca().set_aspect('equal', adjustable='box')
+    #
+    # plt.colorbar()
+    # ###########################
+    #
+    # plt.show()
+    # ############################################################
 
+    # 1D
+
+    # IN
+    in_overlap_vecs = vectors[114974:340327, 4]
+
+    # ON
+    on_overlap_vecs = vectors[373986:776315, 4]
+
+    bins = np.linspace(0, 1, 100)
+
+    plt.hist(on_overlap_vecs, bins, alpha=0.5, label='on')
+    plt.hist(in_overlap_vecs, bins, alpha=0.5, label='in')
+
+    plt.legend(loc='upper right')
+    # plt.axis([0, 1, 0, 5000])
+
+    pl.show()
 
 
 def main():
@@ -976,6 +1054,10 @@ def main():
     # print('len(subj_obj_vec)', len(subj_obj_vec))
     # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
     # print("subj_obj_vec done")
+    # subj_obj_add_vec, subj_obj_vec_preds = word_to_vector("subj_obj", "subj_obj_most_dominant_pred", model, vocab)
+    # print('len(subj_obj_add_vec)', len(subj_obj_add_vec))
+    # # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
+    # print("subj_obj_add_vec done")
     #
     # pickle_file(subj_vec, "subj_vec")
     # print("subj_vec saved")
@@ -983,6 +1065,8 @@ def main():
     # print("obj_vec saved")
     # pickle_file(subj_obj_vec, "subj_obj_vec")
     # print("subj_obj_vec saved")
+    # pickle_file(subj_obj_add_vec, "subj_obj_add_vec")
+    # print("subj_obj_add_vec saved")
     #
     # pickle_file(subj_vec_preds, "subj_vec_preds")
     # print("subj_vec_preds saved")
@@ -1037,6 +1121,11 @@ def main():
     # print("subj_obj_vec_reduced_lda reduced")
     # pickle_file(subj_obj_vec_reduced_lda, "subj_obj_vec_reduced_lda")
     # print("subj_obj_vec_reduced_lda saved")
+    #
+    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preds', 'lda')
+    # print("subj_obj_add_vec_reduced_lda reduced")
+    # pickle_file(subj_obj_add_vec_reduced_lda, "subj_obj_add_vec_reduced_lda")
+    # print("subj_obj_add_vec_reduced_lda saved")
 
     # Plot all dimensionality reduced plots
 
@@ -1050,8 +1139,9 @@ def main():
     #
     # plot_vectors("subj_vec_reduced_lda", "subj_vec_preds", "Subjects: LDA", "2", predicates)
     # plot_vectors("obj_vec_reduced_lda", "obj_vec_preds", "Objects: LDA", "2", predicates)
-    # plot_vectors("subj_obj_vec_reduced_fda", "subj_obj_vec_preds", "Subjects - Objects: LDA", "2", predicates)
-
+    # plot_vectors("subj_obj_vec_reduced_lda", "subj_obj_vec_preds", "Subjects - Objects: LDA", "2", predicates)
+    # plot_vectors("subj_obj_add_vec_reduced_lda", "subj_obj_vec_preds", "Subjects + Objects: LDA", "2", predicates)
+    #
     # plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "3", predicates)
     # plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "3", predicates)
     # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "3", predicates)
@@ -1141,13 +1231,33 @@ def main():
     #     pickle_file(feature_vectors, pred + "_feat_vecs")
     #     print(pred + " feature vectors saved")
     #
-    # dim_reduce_feature_vectors, dim_reduce_feature_vectors_preds = dim_reduc_feat_vecs(predicates)
+    # feature_vectors, dim_reduce_feature_vectors, feature_vectors_preds = dim_reduc_feat_vecs(predicates)
+    # pickle_file(feature_vectors, "feature_vectors")
     # pickle_file(dim_reduce_feature_vectors, "dim_reduce_feature_vectors")
-    # pickle_file(dim_reduce_feature_vectors_preds, "dim_reduce_feature_vectors_preds")
-    #
+    # pickle_file(feature_vectors_preds, "feature_vectors_preds")
+
     # plot_vectors("dim_reduce_feature_vectors", "dim_reduce_feature_vectors_preds", 'hi', '2', predicates)
-    plot_feature_vectors("dim_reduce_feature_vectors", "dim_reduce_feature_vectors_preds", predicates)
-    # print('hi')
+    # plot_feature_vectors("dim_reduce_feature_vectors", "feature_vectors_preds", predicates)
+    plot_feature_vectors("feature_vectors", "feature_vectors_preds", predicates)
+
+
+    in_feat_vec_location = "pred_occurrences/" + predicates[20] + "_feat_vecs.p"
+    in_feat_vecs = np.asarray(pickle.load(open(in_feat_vec_location, "rb")))
+    in_overlap_vecs = in_feat_vecs[:, 4]
+
+    on_feat_vec_location = "pred_occurrences/" + predicates[25] + "_feat_vecs.p"
+    on_feat_vecs = np.asarray(pickle.load(open(on_feat_vec_location, "rb")))
+    on_overlap_vecs = on_feat_vecs[:, 4]
+
+    bins = np.linspace(0, 1, 100)
+
+    plt.hist(on_overlap_vecs, bins, alpha=0.5, label='on')
+    plt.hist(in_overlap_vecs, bins, alpha=0.5, label='in')
+
+    plt.legend(loc='upper right')
+    plt.axis([0, 1, 0, 10000])
+
+    pl.show()
 
 
 if __name__ == "__main__":
