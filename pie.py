@@ -170,26 +170,26 @@ def main():
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
-    # Get all unique subj, obj, and (subj, obj)
-    subj, obj, subj_obj = get_obj_and_subj(predicates)
-
-    # Sort the subj, obj, and (subj, obj) lists
-    subj.sort()
-    obj.sort()
-    subj_obj.sort()
-
-    # Fill the tables (inputting 3 at once to reduce number of calls)
-    prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
-
-    # Save obj, subj, subj_obj as pickle files
-    pickle_file(obj, "obj")
-    pickle_file(subj, "subj")
-    pickle_file(subj_obj, "subj_obj")
-
-    # Save prep_obj, prep_subj, prep_subj_obj as pickle files
-    pickle_file(prep_obj, "prep_obj")
-    pickle_file(prep_subj, "prep_subj")
-    pickle_file(prep_subj_obj, "prep_subj_obj")
+    # # Get all unique subj, obj, and (subj, obj)
+    # subj, obj, subj_obj = get_obj_and_subj(predicates)
+    #
+    # # Sort the subj, obj, and (subj, obj) lists
+    # subj.sort()
+    # obj.sort()
+    # subj_obj.sort()
+    #
+    # # Fill the tables (inputting 3 at once to reduce number of calls)
+    # prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
+    #
+    # # Save obj, subj, subj_obj as pickle files
+    # pickle_file(obj, "obj")
+    # pickle_file(subj, "subj")
+    # pickle_file(subj_obj, "subj_obj")
+    #
+    # # Save prep_obj, prep_subj, prep_subj_obj as pickle files
+    # pickle_file(prep_obj, "prep_obj")
+    # pickle_file(prep_subj, "prep_subj")
+    # pickle_file(prep_subj_obj, "prep_subj_obj")
 
     # # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
     # to_pie_graph("subj_obj", predicates)
@@ -211,6 +211,32 @@ def main():
 
     # Plot predicate most frequent obj/subj/subj_obj tables
     # to_prep_pie_graph("subj_obj", predicates)
+
+
+    # Get only in/on subj and obj
+
+    predicates = ["in", "on"]
+
+    # Get all unique subj, obj, and (subj, obj)
+    subj, obj, subj_obj = get_obj_and_subj(predicates)
+
+    # Sort the subj, obj, and (subj, obj) lists
+    subj.sort()
+    obj.sort()
+    subj_obj.sort()
+
+    # Fill the tables (inputting 3 at once to reduce number of calls)
+    prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
+
+    # Save obj, subj, subj_obj as pickle files
+    pickle_file(obj, "in_on_obj")
+    pickle_file(subj, "in_on_subj")
+    pickle_file(subj_obj, "in_on_subj_obj")
+
+    # Save prep_obj, prep_subj, prep_subj_obj as pickle files
+    pickle_file(prep_obj, "in_on_prep_obj")
+    pickle_file(prep_subj, "in_on_prep_subj")
+    pickle_file(prep_subj_obj, "in_on_prep_subj_obj")
 
 
 if __name__ == "__main__":

@@ -10,12 +10,15 @@ from scipy import spatial
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
 import math
 import scipy.stats as stats
 import pylab as pl
 import seaborn as sns
+from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
 
 
 def get_pred_data(pred):
@@ -152,7 +155,7 @@ def plot_all(predicates):
 
 def box_images(pred):
     # Box specific images
-    pred = 'in'
+    pred = 'by'
 
     data = get_pred_data(pred)
 
@@ -241,11 +244,9 @@ def box_images(pred):
         amount_overlap = abs(overlap_area / subj_area)
 
         rect1 = patches.Rectangle((overlap_x, overlap_y), overlap_width, overlap_height, color='yellow')
-        ax.add_patch(rect1)
+        # ax.add_patch(rect1)
         print(str(i) + ": " + str(amount_overlap))
         plt.title(pred + ' overlap: ' + str(amount_overlap))
-        # plt.title('Preposition: ' + pred)
-        # plt.title(pred + ": " + str(i))
         plt.show()
 
     # # Box all predicates
@@ -993,12 +994,93 @@ def plot_feature_vectors(vectors_file_name, vector_preds_file_name, predicates):
     pl.show()
 
 
+def word_vec_classify(vector_names, dominant_pred, classification_method, preds):
+    # Retrieve vectors for each word
+    label_location = "pred_occurrences/" + vector_names + ".p"
+    vectors = np.asarray(pickle.load(open(label_location, "rb")))
+
+    # Retrieve predicates associated with each word only if reduction_method is 'lda'
+    pred_order_location = "pred_occurrences/" + dominant_pred + ".p"
+    vector_predicates = np.asarray(pickle.load(open(pred_order_location, "rb")))
+
+    # Cross Validation
+    X = np.array(vectors)
+    y = np.array(vector_predicates)
+
+    # print(X)
+    # print(y)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=43)
+
+    # print(len(X_train))
+    # print(len(y_train))
+    # print(len(X_test))
+    # print(len(y_test))
+    #
+    # print(X_train.shape)
+    # print(y_train.shape)
+    # print(X_test.shape)
+    # print(y_test.shape)
+
+    # Number of dimensions to reduce to
+    n_dimensions = 43
+
+    # Get priors
+    priors_count = []
+    total_count = 0.0
+    for pred in preds:
+        data = get_pred_data(pred)
+        priors_count.append(len(data))
+        total_count += len(data)
+
+    for i in range(len(priors_count)):
+        priors_count[i] = priors_count[i] / total_count
+
+    print("priors_count", priors_count)
+
+    # Classify
+    if classification_method == 'lda':
+        # print([1.0/44 for i in range(44)])
+        clf = LinearDiscriminantAnalysis(solver='eigen', priors=np.asarray(priors_count), shrinkage=0.5)
+        # clf = LinearDiscriminantAnalysis()
+
+        clf.fit(X_train, y_train)
+        count_correct = 0
+        for i in range(len(X_test)):
+            # print([X_test[i]])
+            prediction = clf.predict(np.array([X_test[i]]))
+            if prediction == y_test[i]:
+                count_correct += 1
+        print('count_correct', count_correct)
+        print('test_total', len(X_test))
+        print('percentage:', count_correct / len(X_test))
+        # return
+
+    elif classification_method == 'qda':
+        clf = QuadraticDiscriminantAnalysis(priors=np.asarray([1.0/44 for i in range(44)]))
+        # clf = QuadraticDiscriminantAnalysis()
+        clf.fit(X_train, y_train)
+        count_correct = 0
+        for i in range(len(X_test)):
+            # print([X_test[i]])
+            prediction = clf.predict(np.array([X_test[i]]))
+            if prediction == y_test[i]:
+                count_correct += 1
+        print('count_correct', count_correct)
+        print('test_total', len(X_test))
+        print('percentage:', count_correct / len(X_test))
+        # return
+
+
 def main():
     predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
                   "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
                   "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
+
+    # Spatial prepositions
+    # predicates = ["above", "across", "against", "along", "amid", "behind", "beside", "beyond", "in", "on", "under"]
 
     # predicates = ['in', 'on']
 
@@ -1238,26 +1320,119 @@ def main():
 
     # plot_vectors("dim_reduce_feature_vectors", "dim_reduce_feature_vectors_preds", 'hi', '2', predicates)
     # plot_feature_vectors("dim_reduce_feature_vectors", "feature_vectors_preds", predicates)
-    plot_feature_vectors("feature_vectors", "feature_vectors_preds", predicates)
+    # plot_feature_vectors("feature_vectors", "feature_vectors_preds", predicates)
+    #
+    #
+    # in_feat_vec_location = "pred_occurrences/" + predicates[20] + "_feat_vecs.p"
+    # in_feat_vecs = np.asarray(pickle.load(open(in_feat_vec_location, "rb")))
+    # in_overlap_vecs = in_feat_vecs[:, 4]
+    #
+    # on_feat_vec_location = "pred_occurrences/" + predicates[25] + "_feat_vecs.p"
+    # on_feat_vecs = np.asarray(pickle.load(open(on_feat_vec_location, "rb")))
+    # on_overlap_vecs = on_feat_vecs[:, 4]
+    #
+    # bins = np.linspace(0, 1, 100)
+    #
+    # plt.hist(on_overlap_vecs, bins, alpha=0.5, label='on')
+    # plt.hist(in_overlap_vecs, bins, alpha=0.5, label='in')
+    #
+    # plt.legend(loc='upper right')
+    # plt.axis([0, 1, 0, 10000])
+    #
+    # pl.show()
 
+    # Classifiers ######################
 
-    in_feat_vec_location = "pred_occurrences/" + predicates[20] + "_feat_vecs.p"
-    in_feat_vecs = np.asarray(pickle.load(open(in_feat_vec_location, "rb")))
-    in_overlap_vecs = in_feat_vecs[:, 4]
+    # All prepositions
 
-    on_feat_vec_location = "pred_occurrences/" + predicates[25] + "_feat_vecs.p"
-    on_feat_vecs = np.asarray(pickle.load(open(on_feat_vec_location, "rb")))
-    on_overlap_vecs = on_feat_vecs[:, 4]
+    word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preds', 'lda', predicates)
+    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preds', 'qda')
 
-    bins = np.linspace(0, 1, 100)
+    # JUST IN and ON
 
-    plt.hist(on_overlap_vecs, bins, alpha=0.5, label='on')
-    plt.hist(in_overlap_vecs, bins, alpha=0.5, label='in')
+    subj_obj_most_dominant_pred = get_most_dominant_pred('in_on_prep_subj_obj')
+    print(len(subj_obj_most_dominant_pred))
 
-    plt.legend(loc='upper right')
-    plt.axis([0, 1, 0, 10000])
+    pickle_file(subj_obj_most_dominant_pred, "in_on_subj_obj_most_dominant_pred")
+    print("in_on_subj_obj_most_dominant_pred saved")
 
-    pl.show()
+    model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+    print("word2vec model loaded")
+    word_vectors = model.wv
+    vocab = word_vectors.vocab
+
+    subj_obj_vec, subj_obj_vec_preds = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_pred", model, vocab)
+    print('len(in_on_subj_obj_vec)', len(subj_obj_vec))
+    print('len(in_on_subj_obj_vec_preds)', len(subj_obj_vec_preds))
+    print("in_on_subj_obj_vec done")
+    subj_obj_add_vec, subj_obj_vec_preds = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_pred", model, vocab)
+    print('len(in_on_subj_obj_add_vec)', len(subj_obj_add_vec))
+    # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
+    print("in_on_subj_obj_add_vec done")
+
+    pickle_file(subj_obj_vec, "in_on_subj_obj_vec")
+    print("in_on_subj_obj_vec saved")
+    pickle_file(subj_obj_add_vec, "in_on_subj_obj_add_vec")
+    print("in_on_subj_obj_add_vec saved")
+
+    pickle_file(subj_obj_vec_preds, "in_on_subj_obj_vec_preds")
+    print("in_on_subj_obj_vec_preds saved")
+    #
+    # Reduce dimensionality for each subj/obj/subj-obj and each pca/tsne/lda
+    #
+    # subj_vec_reduced_pca = reduce_dimensionality('subj_vec', None, 'pca')
+    # print("subj_vec_reduced_pca reduced")
+    # pickle_file(subj_vec_reduced_pca, "subj_vec_reduced_pca")
+    # print("subj_vec_reduced_pca saved")
+
+    # subj_vec_reduced_tsne = reduce_dimensionality('subj_vec', None, 'tsne')
+    # print("subj_vec_reduced_tsne reduced")
+    # pickle_file(subj_vec_reduced_tsne, "subj_vec_reduced_tsne")
+    # print("subj_vec_reduced_tsne saved")
+    #
+    # subj_vec_reduced_lda = reduce_dimensionality('subj_vec', 'subj_vec_preds', 'lda')
+    # print("subj_vec_reduced_lda reduced")
+    # pickle_file(subj_vec_reduced_lda, "subj_vec_reduced_lda")
+    # print("subj_vec_reduced_lda saved")
+    #
+    # obj_vec_reduced_pca = reduce_dimensionality('obj_vec', None, 'pca')
+    # print("obj_vec_reduced_pca reduced")
+    # pickle_file(obj_vec_reduced_pca, "obj_vec_reduced_pca")
+    # print("obj_vec_reduced_pca saved")
+
+    # obj_vec_reduced_tsne = reduce_dimensionality('obj_vec', None, 'tsne')
+    # print("obj_vec_reduced_tsne reduced")
+    # pickle_file(obj_vec_reduced_tsne, "obj_vec_reduced_tsne")
+    # print("obj_vec_reduced_tsne saved")
+    #
+    # obj_vec_reduced_lda = reduce_dimensionality('obj_vec', 'obj_vec_preds', 'lda')
+    # print("obj_vec_reduced_lda reduced")
+    # pickle_file(obj_vec_reduced_lda, "obj_vec_reduced_lda")
+    # print("obj_vec_reduced_lda saved")
+    #
+    # subj_obj_vec_reduced_pca = reduce_dimensionality('subj_obj_vec', None, 'pca')
+    # print("sbj_obj_vec_reduced_pca reduced")
+    # pickle_file(subj_obj_vec_reduced_pca, "subj_obj_vec_reduced_pca")
+    # print("subj_obj_vec_reduced_pca saved")
+
+    # subj_obj_vec_reduced_tsne = reduce_dimensionality('subj_obj_vec', None, 'tsne')
+    # print("subj_obj_vec_reduced_tsne reduced")
+    # pickle_file(subj_obj_vec_reduced_tsne, "subj_obj_vec_reduced_tsne")
+    # print("subj_obj_vec_reduced_tsne saved")
+    #
+    # subj_obj_vec_reduced_lda = reduce_dimensionality('subj_obj_vec', 'subj_obj_vec_preds', 'lda')
+    # print("subj_obj_vec_reduced_lda reduced")
+    # pickle_file(subj_obj_vec_reduced_lda, "subj_obj_vec_reduced_lda")
+    # print("subj_obj_vec_reduced_lda saved")
+    #
+    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preds', 'lda')
+    # print("subj_obj_add_vec_reduced_lda reduced")
+    # pickle_file(subj_obj_add_vec_reduced_lda, "subj_obj_add_vec_reduced_lda")
+    # print("subj_obj_add_vec_reduced_lda saved")
+
+    word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preds', 'lda', predicates)
+    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preds', 'qda')
+
 
 
 if __name__ == "__main__":
