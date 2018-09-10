@@ -16,32 +16,86 @@ import matplotlib.patches as mpatches
 import math
 import scipy.stats as stats
 import pylab as pl
-import seaborn as sns
+# import seaborn as sns
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+from sklearn.model_selection import cross_val_score
+import random
 
 
-def get_pred_data(pred):
-    file_address = 'new_pred/data_pred_' + pred + '.csv'
+def get_prep_data(prep):
+    file_address = 'new_prep/data_prep_' + prep + '.csv'
     data = pd.read_csv(file_address, encoding="ISO-8859-1")
     return data
 
 
-def get_most_dominant_pred(table_name):
-    # Retrieve counts for each pred occurrence for each item in table
-    table_location = "pred_occurrences/" + table_name + ".p"
+def get_obj_and_subj(prepositions):
+    subj = []
+    obj = []
+    subj_obj = []
+
+    # Loop through data rows and add new subjects and objects to subjects and objects unique list
+    for prep in prepositions:
+        data = get_prep_data(prep)
+        for i in range(len(data)):
+            if data.iloc[i, 2] not in obj:
+                # print("data.iloc[i, 2]:", data.iloc[i, 2])
+                obj.append(data.iloc[i, 2])
+            if data.iloc[i, 9] not in subj:
+                # print("data.iloc[i, 9]:", data.iloc[i, 9])
+                subj.append(data.iloc[i, 9])
+            if (data.iloc[i, 9], data.iloc[i, 2]) not in subj_obj:
+                # print("data.iloc[i, 9], data.iloc[i, 2]:", data.iloc[i,9], ",", data.iloc[i,2])
+                subj_obj.append((data.iloc[i, 9], data.iloc[i, 2]))
+        print("get_obj_and_subj:", prep, "done")
+
+    return subj, obj, subj_obj
+
+
+def fill_tables(obj_file, subj_file, subj_obj_file, prepositions):
+    # Fill tables of obj, subj, and subj_obj where each row has counts of the number of appearances of each preposition
+    # for each unique thing
+
+    subj_file_location = "prep_occurrences/" + subj_file + ".p"
+    subj = pickle.load(open(subj_file_location, "rb"))
+
+    obj_file_location = "prep_occurrences/" + obj_file + ".p"
+    obj = pickle.load(open(obj_file_location, "rb"))
+
+    subj_obj_file_location = "prep_occurrences/" + subj_obj_file + ".p"
+    subj_obj = pickle.load(open(subj_obj_file_location, "rb"))
+
+    prep_subj = np.zeros((len(subj), len(prepositions)))
+    prep_obj = np.zeros((len(obj), len(prepositions)))
+    prep_subj_obj = np.zeros((len(subj_obj), len(prepositions)))
+
+    for prep in prepositions:
+        data = get_prep_data(prep)
+        for i in range(len(data)):
+            prep_subj[subj.index(data.iloc[i, 9]), prepositions.index(prep)] += 1
+            prep_obj[obj.index(data.iloc[i, 2]), prepositions.index(prep)] += 1
+            prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2])), prepositions.index(prep)] += 1
+        print("fill_tables:", prep, "done")
+
+    return prep_subj, prep_obj, prep_subj_obj
+
+
+def get_most_dominant_prep(table_name):
+    # Retrieve counts for each prep occurrence for each item in table
+    table_location = "prep_occurrences/" + table_name + ".p"
     table = pickle.load(open(table_location, "rb"))
 
-    most_dominant_pred = []
+    most_dominant_prep = []
 
-    # Loop through data rows and add index of largest integer for each row (most dominant predicate for this row)
+    # Loop through data rows and add index of largest integer for each row (most dominant preposition for this row)
     for i in range(len(table)):
-        most_dominant_pred.append(np.argmax(table[i]))
+        most_dominant_prep.append(np.argmax(table[i]))
 
-    return most_dominant_pred
+    return most_dominant_prep
 
 
-def plot_normalized_centre_points(pred):
+def plot_normalized_centre_points(prep):
     # Get obj and subj centre points and normalize diffs
     x_normalized_diff = []
     y_normalized_diff = []
@@ -49,7 +103,7 @@ def plot_normalized_centre_points(pred):
     # Weird images
     outlier_relationships = []
 
-    data = get_pred_data(pred)
+    data = get_prep_data(prep)
 
     for i in range(len(data)):
         obj_centre_x = float(data.iloc[i, 5]) + (float(data.iloc[i, 4]) / 2.0)
@@ -60,11 +114,11 @@ def plot_normalized_centre_points(pred):
         x_normalized_diff.append((subj_centre_x - obj_centre_x) / float(data.iloc[i, 15]))
         y_normalized_diff.append((obj_centre_y - subj_centre_y) / float(data.iloc[i, 16]))
 
-        # For specific predicates #
-        if pred == 'above':
+        # For specific prepositions #
+        if prep == 'above':
             if y_normalized_diff[-1] < 0:
                 outlier_relationships.append(data.iloc[i, ])
-        elif pred == 'below':
+        elif prep == 'below':
             if y_normalized_diff[-1] > 0:
                 outlier_relationships.append(data.iloc[i, ])
         ###########################
@@ -72,7 +126,7 @@ def plot_normalized_centre_points(pred):
     # Graph the normalized diff coordinates
     plt.figure(figsize=(14, 5))
     plt.subplot(1, 2, 1)
-    plt.title(pred)
+    plt.title(prep)
     plt.plot(x_normalized_diff, y_normalized_diff, 'ro', markersize=1)
     plt.axis([-1, 1, -1, 1])
 
@@ -103,18 +157,18 @@ def plot_normalized_centre_points(pred):
     plt.gca().set_aspect('equal', adjustable='box')
     ###########################
 
-    plt.title(pred)
+    plt.title(prep)
     plt.colorbar()
 
     # Save plots
-    plt.savefig("new_pred_plot/" + pred + "_plot.png", dpi=300)
+    plt.savefig("new_prep_plot/" + prep + "_plot.png", dpi=300)
 
     # plt.show()
 
     return outlier_relationships
 
 
-def plot_all(predicates):
+def plot_all(prepositions):
 
     # plt.figure(figsize=(14, 5))
     # plt.subplot(1, 2, 1)
@@ -126,12 +180,12 @@ def plot_all(predicates):
 
     # Keep plot graph square
     plt.gca().set_aspect('equal', adjustable='box')
-    for pred in predicates:
+    for prep in prepositions:
         # Get obj and subj centre points and normalize diffs
         x_normalized_diff = []
         y_normalized_diff = []
 
-        data = get_pred_data(pred)
+        data = get_prep_data(prep)
 
         for i in range(len(data)):
             obj_centre_x = float(data.iloc[i, 5]) + (float(data.iloc[i, 4]) / 2.0)
@@ -145,113 +199,141 @@ def plot_all(predicates):
         # Graph the normalized diff coordinates
         plt.plot(x_normalized_diff, y_normalized_diff, 'o', markersize=1)
 
-        print(pred, "done")
+        print(prep, "done")
 
     # # Save plot
-    # plt.savefig("new_pred_plot/combined_one_plot.pdf", dpi=300)
+    # plt.savefig("new_prep_plot/combined_one_plot.pdf", dpi=300)
 
     plt.show()
 
 
-def box_images(pred):
+def box_images(prep, i):
     # Box specific images
-    pred = 'by'
 
-    data = get_pred_data(pred)
+    data = get_prep_data(prep)
 
-    # weird images:
-    # 43, 114
+    image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+    im = np.array(Image.open(image_address), dtype=np.uint8)
 
-    for i in range(len(data)):
-        # print(max(data.iloc[i, 3] * data.iloc[i, 4], data.iloc[i, 10] * data.iloc[i, 11]))
-        image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
-        im = np.array(Image.open(image_address), dtype=np.uint8)
+    # Create figure and axes
+    fig, ax = plt.subplots(1)
 
-        # Create figure and axes
-        fig, ax = plt.subplots(1)
+    # Display the image
+    ax.imshow(im)
 
-        # Display the image
-        ax.imshow(im)
+    # Create a Rectangle patch
+    obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+                                int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
+    subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+                                 int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
 
-        # Create a Rectangle patch
-        obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
-                                    int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
-        subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
-                                     int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+    # Add the patch to the Axes
+    ax.add_patch(obj_box)
+    ax.add_patch(subj_box)
 
-        # Add the patch to the Axes
-        ax.add_patch(obj_box)
-        ax.add_patch(subj_box)
+    # # Add centroids
+    # plt.plot(int(data.iloc[i, 5]) + (0.5 * int(data.iloc[i, 4])),
+    #          int(data.iloc[i, 6]) + (0.5 * int(data.iloc[i, 3])), 'bo', markersize=3)
+    # plt.plot(int(data.iloc[i, 12]) + (0.5 * int(data.iloc[i, 11])),
+    #          int(data.iloc[i, 13]) + (0.5 * int(data.iloc[i, 10])), 'ro', markersize=3)
 
-        # # Add centroids
-        # plt.plot(int(data.iloc[i, 5]) + (0.5 * int(data.iloc[i, 4])),
-        #          int(data.iloc[i, 6]) + (0.5 * int(data.iloc[i, 3])), 'bo', markersize=3)
-        # plt.plot(int(data.iloc[i, 12]) + (0.5 * int(data.iloc[i, 11])),
-        #          int(data.iloc[i, 13]) + (0.5 * int(data.iloc[i, 10])), 'ro', markersize=3)
+    # Label obj and subj
+    plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
+    plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='k')
 
+    plt.title(prep + ": " + str(i))
+    plt.show()
 
-        # Label obj and subj
-        plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
-        plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='k')
+    # for i in range(len(data)):
+    #     # print(max(data.iloc[i, 3] * data.iloc[i, 4], data.iloc[i, 10] * data.iloc[i, 11]))
+    #     image_address = 'images/' + str(data.iloc[i, 0]) + '.jpg'
+    #     im = np.array(Image.open(image_address), dtype=np.uint8)
+    #
+    #     # Create figure and axes
+    #     fig, ax = plt.subplots(1)
+    #
+    #     # Display the image
+    #     ax.imshow(im)
+    #
+    #     # Create a Rectangle patch
+    #     obj_box = patches.Rectangle((int(data.iloc[i, 5]), int(data.iloc[i, 6])), int(data.iloc[i, 4]),
+    #                                 int(data.iloc[i, 3]), linewidth=1, edgecolor='b', facecolor='none')
+    #     subj_box = patches.Rectangle((int(data.iloc[i, 12]), int(data.iloc[i, 13])), int(data.iloc[i, 11]),
+    #                                  int(data.iloc[i, 10]), linewidth=1, edgecolor='r', facecolor='none')
+    #
+    #     # Add the patch to the Axes
+    #     ax.add_patch(obj_box)
+    #     ax.add_patch(subj_box)
+    #
+    #     # # Add centroids
+    #     # plt.plot(int(data.iloc[i, 5]) + (0.5 * int(data.iloc[i, 4])),
+    #     #          int(data.iloc[i, 6]) + (0.5 * int(data.iloc[i, 3])), 'bo', markersize=3)
+    #     # plt.plot(int(data.iloc[i, 12]) + (0.5 * int(data.iloc[i, 11])),
+    #     #          int(data.iloc[i, 13]) + (0.5 * int(data.iloc[i, 10])), 'ro', markersize=3)
+    #
+    #
+    #     # Label obj and subj
+    #     plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
+    #     plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='k')
+    #
+    #
+    #     # Colour in overlap area
+    #     subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
+    #
+    #     overlap_width = 0
+    #     overlap_height = 0
+    #     overlap_x = 0
+    #     overlap_y = 0
+    #     # subj_y <= obj_y and subj_y + subj_h > obj_y
+    #     if (float(data.iloc[i, 13]) <= float(data.iloc[i, 6])) and \
+    #             (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
+    #         overlap_y = data.iloc[i, 6]
+    #         # subj_y + subj_h > obj_y + obj_h
+    #         if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+    #             overlap_height = float(data.iloc[i, 3])
+    #         else:
+    #             overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
+    #     # subj_y > obj_y and subj_y < obj_y + obj_h
+    #     elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
+    #             float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
+    #         overlap_y = data.iloc[i, 13]
+    #         # subj_y + subj_h > obj_y + obj_h
+    #         if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+    #             overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
+    #         else:
+    #             overlap_height = float(data.iloc[i, 10])
+    #
+    #     # subj_x <= obj_x and subj_x + subj_w > obj_x
+    #     if (float(data.iloc[i, 12]) <= float(data.iloc[i, 5])) and \
+    #             (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
+    #         overlap_x = data.iloc[i, 5]
+    #         # subj_x + subj_w > obj_x + obj_w
+    #         if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+    #             overlap_width = float(data.iloc[i, 4])
+    #         else:
+    #             overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
+    #     # subj_x > obj_x and subj_x < obj_x + obj_w
+    #     elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
+    #             float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+    #         overlap_x = data.iloc[i, 12]
+    #         # subj_x + subj_w > obj_x + obj_w
+    #         if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+    #             overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
+    #         else:
+    #             overlap_width = float(data.iloc[i, 11])
+    #
+    #     overlap_area = overlap_width * overlap_height
+    #     amount_overlap = abs(overlap_area / subj_area)
+    #
+    #     rect1 = patches.Rectangle((overlap_x, overlap_y), overlap_width, overlap_height, color='yellow')
+    #     # ax.add_patch(rect1)
+    #     print(str(i) + ": " + str(amount_overlap))
+    #     plt.title(prep + ' overlap: ' + str(amount_overlap))
+    #     plt.show()
 
-
-        # Colour in overlap area
-        subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
-
-        overlap_width = 0
-        overlap_height = 0
-        overlap_x = 0
-        overlap_y = 0
-        # subj_y <= obj_y and subj_y + subj_h > obj_y
-        if (float(data.iloc[i, 13]) <= float(data.iloc[i, 6])) and \
-                (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
-            overlap_y = data.iloc[i, 6]
-            # subj_y + subj_h > obj_y + obj_h
-            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
-                overlap_height = float(data.iloc[i, 3])
-            else:
-                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
-        # subj_y > obj_y and subj_y < obj_y + obj_h
-        elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
-                float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
-            overlap_y = data.iloc[i, 13]
-            # subj_y + subj_h > obj_y + obj_h
-            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
-                overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
-            else:
-                overlap_height = float(data.iloc[i, 10])
-
-        # subj_x <= obj_x and subj_x + subj_w > obj_x
-        if (float(data.iloc[i, 12]) <= float(data.iloc[i, 5])) and \
-                (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
-            overlap_x = data.iloc[i, 5]
-            # subj_x + subj_w > obj_x + obj_w
-            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-                overlap_width = float(data.iloc[i, 4])
-            else:
-                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
-        # subj_x > obj_x and subj_x < obj_x + obj_w
-        elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
-                float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-            overlap_x = data.iloc[i, 12]
-            # subj_x + subj_w > obj_x + obj_w
-            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-                overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
-            else:
-                overlap_width = float(data.iloc[i, 11])
-
-        overlap_area = overlap_width * overlap_height
-        amount_overlap = abs(overlap_area / subj_area)
-
-        rect1 = patches.Rectangle((overlap_x, overlap_y), overlap_width, overlap_height, color='yellow')
-        # ax.add_patch(rect1)
-        print(str(i) + ": " + str(amount_overlap))
-        plt.title(pred + ' overlap: ' + str(amount_overlap))
-        plt.show()
-
-    # # Box all predicates
-    # for pred in predicates:
-    #     data = get_pred_data(pred)
+    # # Box all prepositions
+    # for prep in prepositions:
+    #     data = get_prep_data(prep)
     #     for i in range(0, len(data)):
     #         # Decide whether row i fulfills rules #
     #         factor = math.sqrt(0.5 / (int(data.iloc[i, 3] * int(data.iloc[i, 4]))))
@@ -294,57 +376,62 @@ def box_images(pred):
     #             plt.annotate("Object: " + data.iloc[i, 2], (int(data.iloc[i, 5]), int(data.iloc[i, 6])), color='k')
     #             plt.annotate("Subject: " + data.iloc[i, 9], (int(data.iloc[i, 12]), int(data.iloc[i, 13])), color='w')
     #
-    #             plt.title("Preposition: " + pred)
-    #             # plt.title(pred + ": " + str(i))
+    #             plt.title("Preposition: " + prep)
+    #             # plt.title(prep + ": " + str(i))
     #             print(str(i))
     #             plt.show()
 
 
-def word_to_vector(table_name, pred_order_name, model, vocab):
+def word_to_vector(table_name, prep_order_name, model, vocab):
     # Retrieve labels for each row in table
-    label_location = "pred_occurrences/" + table_name + ".p"
+    label_location = "prep_occurrences/" + table_name + ".p"
     words = pickle.load(open(label_location, "rb"))
 
-    pred_order_location = "pred_occurrences/" + pred_order_name + ".p"
-    preds = pickle.load(open(pred_order_location, "rb"))
+    prep_order_location = "prep_occurrences/" + prep_order_name + ".p"
+    preps = pickle.load(open(prep_order_location, "rb"))
 
+    # Only keep words that are part of pre-trained word2vec vocabulary
     word_vectors = []
-    new_pred_order = []
+    new_prep_order = []
     for i in range(len(words)):
         # if (subj, obj)
         if isinstance(words[i], tuple):
             if words[i][0] in vocab and words[i][1] in vocab:
-                word_vectors.append(model[words[i][0]] + model[words[i][1]])
-                new_pred_order.append(preds[i])
+                # print(np.asarray(model[words[i][0]]))
+                concatenated_word_vectors = np.concatenate((np.asarray(model[words[i][0]]), np.asarray(model[words[i][1]])))
+                # print(len(concatenated_word_vectors))
+                # print(np.concatenate(np.asarray(model[words[i][0]]), np.asarray(model[words[i][1]])))
+                word_vectors.append(concatenated_word_vectors)
+                new_prep_order.append(preps[i])
         # if subj, or obj
         else:
             if words[i] in vocab:
                 word_vectors.append(model[words[i]])
-                new_pred_order.append(preds[i])
+                new_prep_order.append(preps[i])
 
-    return word_vectors, new_pred_order
+    return word_vectors, new_prep_order
 
 
 def pickle_file(table, name):
     # https://wiki.python.org/moin/UsingPickle
-    file_name = "pred_occurrences/" + name + ".p"
+    file_name = "prep_occurrences/" + name + ".p"
     with open(file_name, "wb") as fp:  # Pickling
         pickle.dump(table, fp)
 
 
-def reduce_dimensionality(vector_names, dominant_pred, reduction_method):
+def reduce_dimensionality(vector_names, dominant_prep, reduction_method):
     # Retrieve vectors for each word
-    label_location = "pred_occurrences/" + vector_names + ".p"
+    label_location = "prep_occurrences/" + vector_names + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
 
-    # Retrieve predicates associated with each word only if reduction_method is 'lda'
-    vector_predicates = None
-    if dominant_pred is not None:
-        pred_order_location = "pred_occurrences/" + dominant_pred + ".p"
-        vector_predicates = np.asarray(pickle.load(open(pred_order_location, "rb")))
+    # Retrieve prepositions associated with each word only if reduction_method is 'lda'
+    vector_prepositions = None
+    if dominant_prep is not None:
+        prep_order_location = "prep_occurrences/" + dominant_prep + ".p"
+        vector_prepositions = np.asarray(pickle.load(open(prep_order_location, "rb")))
 
     # print('len(vectors)', len(vectors))
-    # print('len(vector_predicates)', len(vector_predicates))
+    # print('len(vector_prepositions)', len(vector_prepositions))
 
     # Number of dimensions to reduce to
     n_dimensions = 43
@@ -362,25 +449,25 @@ def reduce_dimensionality(vector_names, dominant_pred, reduction_method):
     elif reduction_method == 'lda':
         # pick another solver to set shrinkage = 0.5, and set n_components=k-1
         clf = LinearDiscriminantAnalysis(solver='eigen', shrinkage=0.5, n_components=n_dimensions)
-        clf.fit(vectors, vector_predicates)
+        clf.fit(vectors, vector_prepositions)
         new_vectors = clf.transform(vectors)
         print('lda new_vectors', new_vectors.shape)
 
     return new_vectors
 
 
-def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions, predicates):
+def plot_vectors(vectors_file_name, vector_preps_file_name, title, n_dimensions, prepositions):
     # Retrieve dimensionally reduced vectors for each subj/obj/subj-obj
-    label_location = "pred_occurrences/" + vectors_file_name + ".p"
+    label_location = "prep_occurrences/" + vectors_file_name + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
 
-    # Retrieve corresponding most dominant predicate for each subj/obj/subj-obj
-    label_location = "pred_occurrences/" + vector_preds_file_name + ".p"
-    vector_preds = np.asarray(pickle.load(open(label_location, "rb")))
+    # Retrieve corresponding most dominant preposition for each subj/obj/subj-obj
+    label_location = "prep_occurrences/" + vector_preps_file_name + ".p"
+    vector_preps = np.asarray(pickle.load(open(label_location, "rb")))
 
     print('hi1')
     print(len(vectors))
-    print(len(vector_preds))
+    print(len(vector_preps))
     print(vectors[0, 0], vectors[0, 1])
     print(vectors[1, 0], vectors[1, 1])
     print(vectors[2, 0], vectors[2, 1])
@@ -388,27 +475,27 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
     # plt.plot(vectors[0, 0], vectors[0, 1], 'bo', markersize=10)
     # plt.show()
 
-    # Colors for each predicate
-    # pred_to_color = {1: [predicates[1], 'black'], 11: [predicates[11], 'green'], 17: [predicates[17], 'violet'],
-    #                  20: [predicates[20], 'blue'], 23: [predicates[23], 'orange'], 25: [predicates[25], 'red'],
-    #                  37: [predicates[38], 'indigo'], 41: [predicates[41], 'yellow']}
+    # Colors for each preposition
+    # prep_to_color = {1: [prepositions[1], 'black'], 11: [prepositions[11], 'green'], 17: [prepositions[17], 'violet'],
+    #                  20: [prepositions[20], 'blue'], 23: [prepositions[23], 'orange'], 25: [prepositions[25], 'red'],
+    #                  37: [prepositions[38], 'indigo'], 41: [prepositions[41], 'yellow']}
 
-    # print(predicates)
+    # print(prepositions)
 
-    # # Colors for each predicate (reduced list)
-    # pred_to_color = {0: [predicates[0], 'blue'], 1: [predicates[1], 'red']}
+    # # Colors for each preposition (reduced list)
+    # prep_to_color = {0: [prepositions[0], 'blue'], 1: [prepositions[1], 'red']}
     #
-    # preds = []
+    # preps = []
     # colors = []
-    # for i in range(len(predicates)):
-    #     if i in pred_to_color:
-    #         preds.append(pred_to_color[i][0])
-    #         colors.append(pred_to_color[i][1])
+    # for i in range(len(prepositions)):
+    #     if i in prep_to_color:
+    #         preps.append(prep_to_color[i][0])
+    #         colors.append(prep_to_color[i][1])
     #
-    # print('preds', preds)
+    # print('preps', preps)
     # print('colors', colors)
     #
-    # handles_patches = [mpatches.Patch(color=colors[i], label="{:s}".format(preds[i])) for i in range(len(preds))]
+    # handles_patches = [mpatches.Patch(color=colors[i], label="{:s}".format(preps[i])) for i in range(len(preps))]
     #
     # print(vectors.shape)
 
@@ -423,10 +510,10 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
         kde_y = []
 
         for i in range(len(vectors)):
-            if vector_preds[i] == 20 or vector_preds[i] == 25:
-                if vector_preds[i] == 20:
+            if vector_preps[i] == 20 or vector_preps[i] == 25:
+                if vector_preps[i] == 20:
                     plt.plot(vectors[i, 0], vectors[i, 1], 'bo', markersize=1)
-                # if vector_preds[i] == 25:
+                # if vector_preps[i] == 25:
                 #     plt.plot(vectors[i, 0], vectors[i, 1], 'ro', markersize=1)
                     kde_x.append(vectors[i, 0])
                     kde_y.append((vectors[i, 1]))
@@ -487,31 +574,31 @@ def plot_vectors(vectors_file_name, vector_preds_file_name, title, n_dimensions,
     #
     #     for i in range(len(vectors)):
     #         # print(len(vectors))
-    #         if vector_preds[i] in pred_to_color:
+    #         if vector_preps[i] in prep_to_color:
     #             plt.plot([vectors[i, 0]], [vectors[i, 1]], [vectors[i, 2]], marker='o', markersize=1,
-    #                      color=pred_to_color[vector_preds[i]][1])
+    #                      color=prep_to_color[vector_preps[i]][1])
     #
     #     # ax.scatter(vectors[:, 0], vectors[:, 1], vectors[:, 2], s=0.1, c='b')
     #     plt.title(title + ' 3d')
     #     plt.savefig("word_vector_plot/" + vectors_file_name + "_plot_3d.pdf")
 
 
-def find_longest_separation(predicates):
+def find_longest_separation(prepositions):
     # might also want to look at which image contains longest_edge and longest_separation
     # so get image id too when u update max
 
     # longest_separation = 0
-    # pred = 'in'
+    # prep = 'in'
     # i = 179
     #
-    # data = get_pred_data(pred)
+    # data = get_prep_data(prep)
     #
     # # get longest edge
     # old_longest_edge = longest_edge
     # longest_edge = max(longest_edge, data.iloc[i, 3], data.iloc[i, 4], data.iloc[i, 10], data.iloc[i, 11])
     # if longest_edge > old_longest_edge:
-    #     longest_edge_pred = pred
-    #     longest_edge_pred_index = i
+    #     longest_edge_prep = prep
+    #     longest_edge_prep_index = i
     #     longest_edge_img_id = data.iloc[i, 0]
     #
     # # get max y
@@ -534,27 +621,27 @@ def find_longest_separation(predicates):
     # old_longest_separation = longest_separation
     # longest_separation = max(longest_separation, max_y, max_x)
     # if longest_separation > old_longest_separation:
-    #     longest_separation_pred = pred
-    #     longest_separation_pred_index = i
+    #     longest_separation_prep = prep
+    #     longest_separation_prep_index = i
     #     longest_separation_img_id = data.iloc[i, 0]
     #
-    # print(pred, 'done')
+    # print(prep, 'done')
     #
-    # return longest_edge, longest_separation, longest_edge_pred, longest_edge_pred_index, longest_edge_img_id, \
-    #        longest_separation_pred, longest_separation_pred_index, longest_separation_img_id
+    # return longest_edge, longest_separation, longest_edge_prep, longest_edge_prep_index, longest_edge_img_id, \
+    #        longest_separation_prep, longest_separation_prep_index, longest_separation_img_id
 
     longest_separation = 0
-    # longest_separation_pred = predicates[0]
-    # longest_separation_pred_index = 0
+    # longest_separation_prep = prepositions[0]
+    # longest_separation_prep_index = 0
     # longest_separation_img_id = 0
 
     total_lines_of_data = 0
     total_used_lines_of_data = 0
-    for pred in predicates:
-        data = get_pred_data(pred)
-        pred_lines_of_data = len(data)
-        pred_used_lines_of_data = 0
-        total_lines_of_data += pred_lines_of_data
+    for prep in prepositions:
+        data = get_prep_data(prep)
+        prep_lines_of_data = len(data)
+        prep_used_lines_of_data = 0
+        total_lines_of_data += prep_lines_of_data
         for i in range(len(data)):
             # Proceed with this line of data only if it fulfills certain rules
 
@@ -576,31 +663,31 @@ def find_longest_separation(predicates):
             if fulfills_rules(data.iloc[i, ], new_longest_separation, factor):
                 if new_longest_separation > old_longest_separation:
                     longest_separation = new_longest_separation
-                    longest_separation_pred = pred
-                    longest_separation_pred_index = i
+                    longest_separation_prep = prep
+                    longest_separation_prep_index = i
                     longest_separation_img_id = data.iloc[i, 0]
-                pred_used_lines_of_data += 1
+                prep_used_lines_of_data += 1
 
-        total_used_lines_of_data += pred_used_lines_of_data
+        total_used_lines_of_data += prep_used_lines_of_data
 
-        print('pred_lines_of_data', pred_lines_of_data)
-        print('pred_used_lines_of_data', pred_used_lines_of_data)
-        print('percent used', pred_used_lines_of_data / pred_lines_of_data)
-        print(pred, 'done')
+        print('prep_lines_of_data', prep_lines_of_data)
+        print('prep_used_lines_of_data', prep_used_lines_of_data)
+        print('percent used', prep_used_lines_of_data / prep_lines_of_data)
+        print(prep, 'done')
 
     print('total_lines_of_data', total_lines_of_data)
     print('used_lines_of_data', total_used_lines_of_data)
     print('percent used', total_used_lines_of_data / total_lines_of_data)
 
-    return longest_separation, longest_separation_pred, longest_separation_pred_index, longest_separation_img_id
+    return longest_separation, longest_separation_prep, longest_separation_prep_index, longest_separation_img_id
 
 
-def get_bounding_box_vectors(pred, decrease_factor, plot_size):
-    # # Get bounding box of specific image for specific predicate
-    # pred = 'on'
+def get_bounding_box_vectors(prep, decrease_factor, plot_size):
+    # # Get bounding box of specific image for specific preposition
+    # prep = 'on'
     # i = 35610
     #
-    # data = get_pred_data(pred)
+    # data = get_prep_data(prep)
     #
     # # create white plot of -normalized_longest_separation to +normalized_longest_separation
     # fig, ax = plt.subplots(1)
@@ -628,11 +715,11 @@ def get_bounding_box_vectors(pred, decrease_factor, plot_size):
     #
     # # Keep plot graph square
     # plt.gca().set_aspect('equal', adjustable='box')
-    # plt.title(pred + ": " + str(data.iloc[i, 0]))
+    # plt.title(prep + ": " + str(data.iloc[i, 0]))
     # plt.show()
 
-    # Get bounding boxes for all images of given predicate
-    data = get_pred_data(pred)
+    # Get bounding boxes for all images of given preposition
+    data = get_prep_data(prep)
 
     for i in range(len(data)):
         # create white plot of -normalized_longest_separation to +normalized_longest_separation
@@ -661,20 +748,20 @@ def get_bounding_box_vectors(pred, decrease_factor, plot_size):
 
         # Keep plot graph square
         plt.gca().set_aspect('equal', adjustable='box')
-        plt.title(pred + ": " + str(i))
+        plt.title(prep + ": " + str(i))
         plt.show()
 
         # Turn plot into one long 300-dimension 1d array by __
 
-        # Return these arrays, as well as their corresponding predicate for LDA later
+        # Return these arrays, as well as their corresponding preposition for LDA later
 
 
-def get_normalized_bounding_box_vectors(pred, plot_size):
-    # Get bounding box of specific image for specific predicate
-    pred = 'above'
+def get_normalized_bounding_box_vectors(prep, plot_size):
+    # Get bounding box of specific image for specific preposition
+    prep = 'above'
     i = 53
 
-    data = get_pred_data(pred)
+    data = get_prep_data(prep)
 
     # create white plot of -normalized_longest_separation to +normalized_longest_separation
     fig, ax = plt.subplots(1)
@@ -714,13 +801,13 @@ def get_normalized_bounding_box_vectors(pred, plot_size):
     plt.ylabel('200')
     # plt.axis('off')
 
-    # plt.title(pred + ": " + str(i))
-    plt.title(pred)
-    plt.savefig("../Presentation-Images/" + pred + "_" + str(i)+ "_bb_plot_grid.png", dpi=2400)
+    # plt.title(prep + ": " + str(i))
+    plt.title(prep)
+    plt.savefig("../Presentation-Images/" + prep + "_" + str(i)+ "_bb_plot_grid.png", dpi=2400)
     plt.show()
 
-    # # Get bounding boxes for all images of given predicate
-    # data = get_pred_data(pred)
+    # # Get bounding boxes for all images of given preposition
+    # data = get_prep_data(prep)
     #
     # # fig, ax = plt.subplots(1)
     # # plt.axis([-plot_size, plot_size, -plot_size, plot_size])
@@ -774,8 +861,8 @@ def get_normalized_bounding_box_vectors(pred, plot_size):
     #
     #         # Keep plot graph square
     #         plt.gca().set_aspect('equal', adjustable='box')
-    #         # plt.title(pred + ": " + str(i))
-    #         # plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".png", dpi=50)
+    #         # plt.title(prep + ": " + str(i))
+    #         # plt.savefig("new_prep_bb_plot/" + prep + "_bounding_box_plot_" + str(i) + ".png", dpi=50)
     #
     #         # ax = fig.gca()
     #         # ax.set_xticks(np.arange(-1, 1, 0.01))
@@ -784,18 +871,18 @@ def get_normalized_bounding_box_vectors(pred, plot_size):
     #         # plt.rc('grid', linestyle="-", color='black')
     #         # plt.axis('off')
     #
-    #         # plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".pdf", bbox_inches='tight')
-    #         plt.savefig("new_pred_bb_plot/" + pred + "_bounding_box_plot_" + str(i) + ".png", dpi=55,
+    #         # plt.savefig("new_prep_bb_plot/" + prep + "_bounding_box_plot_" + str(i) + ".pdf", bbox_inches='tight')
+    #         plt.savefig("new_prep_bb_plot/" + prep + "_bounding_box_plot_" + str(i) + ".png", dpi=55,
     #                     bbox_inches='tight')
     #         plt.show()
 
     # plt.gca().set_aspect('equal', adjustable='box')
-    # plt.title(pred + ": " + str(i))
-    # plt.savefig("new_pred_plot/" + pred + "bounding_box_plot.pdf")
+    # plt.title(prep + ": " + str(i))
+    # plt.savefig("new_prep_plot/" + prep + "bounding_box_plot.pdf")
     # plt.show()
 
         # Turn plot into one long 300-dimension 1d array by __
-        # Return these arrays, as well as their corresponding predicate for LDA later
+        # Return these arrays, as well as their corresponding preposition for LDA later
 
 
 def fulfills_rules(row, longest_separation, factor):
@@ -811,124 +898,116 @@ def fulfills_rules(row, longest_separation, factor):
     return True
 
 
-def get_feature_vectors(pred):
-    data = get_pred_data(pred)
+def get_feature_vector(data, i):
 
-    feature_vectors = []
+    subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
 
-    for i in range(len(data)):
-        subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
+    factor = 1 / math.sqrt(data.iloc[i, 4] * data.iloc[i, 3])
 
-        factor = 1 / math.sqrt(data.iloc[i, 4] * data.iloc[i, 3])
+    x_diff = (float(data.iloc[i, 12]) - float(data.iloc[i, 5])) * factor
+    y_diff = (float(data.iloc[i, 13]) - float(data.iloc[i, 6])) * factor
+    width_diff = (float(data.iloc[i, 11]) - float(data.iloc[i, 4])) * factor
+    height_diff = (float(data.iloc[i, 10]) - float(data.iloc[i, 3])) * factor
+    x_cent_diff = (x_diff + (0.5 * width_diff)) * factor
+    y_cent_diff = (y_diff + (0.5 * height_diff)) * factor
+    area_ratio = (float(data.iloc[i, 11]) * float(data.iloc[i, 10])) / \
+                 (float(data.iloc[i, 4]) * float(data.iloc[i, 3]))
 
-        x_diff = (float(data.iloc[i, 12]) - float(data.iloc[i, 5])) * factor
-        y_diff = (float(data.iloc[i, 13]) - float(data.iloc[i, 6])) * factor
-        width_diff = (float(data.iloc[i, 11]) - float(data.iloc[i, 4])) * factor
-        height_diff = (float(data.iloc[i, 10]) - float(data.iloc[i, 3])) * factor
-        x_cent_diff = (x_diff + (0.5 * width_diff)) * factor
-        y_cent_diff = (y_diff + (0.5 * height_diff)) * factor
-        area_ratio = (float(data.iloc[i, 11]) * float(data.iloc[i, 10])) / \
-                     (float(data.iloc[i, 4]) * float(data.iloc[i, 3]))
+    overlap_width = 0
+    overlap_height = 0
+    # subj_y < obj_y and subj_y + subj_h > obj_y
+    if (float(data.iloc[i, 13]) < float(data.iloc[i, 6])) and \
+            (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
+        # subj_y + subj_h > obj_y + obj_h
+        if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+            overlap_height = float(data.iloc[i, 3])
+        else:
+            overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
+    # subj_y > obj_y and subj_y < obj_y + obj_h
+    elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
+            float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
+        # subj_y + subj_h > obj_y + obj_h
+        if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
+            overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
+        else:
+            overlap_height = float(data.iloc[i, 10])
 
-        overlap_width = 0
-        overlap_height = 0
-        # subj_y < obj_y and subj_y + subj_h > obj_y
-        if (float(data.iloc[i, 13]) < float(data.iloc[i, 6])) and \
-                (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > float(data.iloc[i, 6]):
-            # subj_y + subj_h > obj_y + obj_h
-            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
-                overlap_height = float(data.iloc[i, 3])
-            else:
-                overlap_height = float(data.iloc[i, 13]) + float(data.iloc[i, 10]) - float(data.iloc[i, 6])
-        # subj_y > obj_y and subj_y < obj_y + obj_h
-        elif (float(data.iloc[i, 13]) > float(data.iloc[i, 6])) and \
-                float(data.iloc[i, 13]) < float(data.iloc[i, 6]) + float(data.iloc[i, 3]):
-            # subj_y + subj_h > obj_y + obj_h
-            if (float(data.iloc[i, 13]) + float(data.iloc[i, 10])) > (float(data.iloc[i, 6]) + float(data.iloc[i, 3])):
-                overlap_height = float(data.iloc[i, 6]) + float(data.iloc[i, 3]) - float(data.iloc[i, 13])
-            else:
-                overlap_height = float(data.iloc[i, 10])
+    # subj_x < obj_x and subj_x + subj_w > obj_x
+    if (float(data.iloc[i, 12]) < float(data.iloc[i, 5])) and \
+            (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
+        # subj_x + subj_w > obj_x + obj_w
+        if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+            overlap_width = float(data.iloc[i, 4])
+        else:
+            overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
+    # subj_x > obj_x and subj_x < obj_x + obj_w
+    elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
+            float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+        # subj_x + subj_w > obj_x + obj_w
+        if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
+            overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
+        else:
+            overlap_width = float(data.iloc[i, 11])
 
-        # subj_x < obj_x and subj_x + subj_w > obj_x
-        if (float(data.iloc[i, 12]) < float(data.iloc[i, 5])) and \
-                (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > float(data.iloc[i, 5]):
-            # subj_x + subj_w > obj_x + obj_w
-            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-                overlap_width = float(data.iloc[i, 4])
-            else:
-                overlap_width = float(data.iloc[i, 12]) + float(data.iloc[i, 11]) - float(data.iloc[i, 5])
-        # subj_x > obj_x and subj_x < obj_x + obj_w
-        elif (float(data.iloc[i, 12]) > float(data.iloc[i, 5])) and \
-                float(data.iloc[i, 12]) < (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-            # subj_x + subj_w > obj_x + obj_w
-            if (float(data.iloc[i, 12]) + float(data.iloc[i, 11])) > (float(data.iloc[i, 5]) + float(data.iloc[i, 4])):
-                overlap_width = (float(data.iloc[i, 5]) + float(data.iloc[i, 4])) - float(data.iloc[i, 12])
-            else:
-                overlap_width = float(data.iloc[i, 11])
+    overlap_area = overlap_width * overlap_height
+    # print('overlap_area', overlap_area, 'obj_area', obj_area)
+    amount_overlap = abs(overlap_area / subj_area)
 
-        overlap_area = overlap_width * overlap_height
-        # print('overlap_area', overlap_area, 'obj_area', obj_area)
-        amount_overlap = abs(overlap_area / subj_area)
+    # print('amount_overlap', amount_overlap)
+    if amount_overlap > 1 or amount_overlap < 0:
+        print('something is wrong')
+        return
+    feature_vector = np.asarray([x_diff, y_diff, x_cent_diff, y_cent_diff, amount_overlap, width_diff, height_diff, area_ratio])
 
-        # print('amount_overlap', amount_overlap)
-        if amount_overlap > 1 or amount_overlap < 0:
-            print('something is wrong')
-            return
-        feature_vector = [x_diff, y_diff, x_cent_diff, y_cent_diff, amount_overlap, width_diff, height_diff, area_ratio]
-
-        # print(feature_vector)
-
-        feature_vectors.append(feature_vector)
-
-    return feature_vectors
+    return feature_vector
 
 
-def dim_reduc_feat_vecs(predicates):
-    pred_feat_vec_location = "pred_occurrences/" + predicates[0] + "_feat_vecs.p"
-    feat_vecs = np.asarray(pickle.load(open(pred_feat_vec_location, "rb")))
+def dim_reduc_feat_vecs(prepositions):
+    prep_feat_vec_location = "prep_occurrences/" + prepositions[0] + "_feat_vecs.p"
+    feat_vecs = np.asarray(pickle.load(open(prep_feat_vec_location, "rb")))
 
-    feat_vecs_preds = []
+    feat_vecs_preps = []
     for i in range(len(feat_vecs)):
-        feat_vecs_preds.append(0)
+        feat_vecs_preps.append(0)
 
     n_dimensions = 2
 
-    # print(len(predicates))
+    # print(len(prepositions))
 
-    for i in range(1, len(predicates)):
-        pred_feat_vec_location = "pred_occurrences/" + predicates[i] + "_feat_vecs.p"
-        pred_feat_vecs = np.asarray(pickle.load(open(pred_feat_vec_location, "rb")))
-        feat_vecs = np.concatenate((feat_vecs, pred_feat_vecs), axis=0)
-        for j in range(len(pred_feat_vecs)):
-            feat_vecs_preds.append(i)
+    for i in range(1, len(prepositions)):
+        prep_feat_vec_location = "prep_occurrences/" + prepositions[i] + "_feat_vecs.p"
+        prep_feat_vecs = np.asarray(pickle.load(open(prep_feat_vec_location, "rb")))
+        feat_vecs = np.concatenate((feat_vecs, prep_feat_vecs), axis=0)
+        for j in range(len(prep_feat_vecs)):
+            feat_vecs_preps.append(i)
 
-        print(predicates[i] + " done")
+        print(prepositions[i] + " done")
 
-    feat_vecs_preds = np.asarray(feat_vecs_preds)
+    feat_vecs_preps = np.asarray(feat_vecs_preps)
 
     clf = LinearDiscriminantAnalysis(n_components=n_dimensions)
-    clf.fit(feat_vecs, feat_vecs_preds)
+    clf.fit(feat_vecs, feat_vecs_preps)
     new_vectors = clf.transform(feat_vecs)
 
     print(new_vectors[0])
     print(len(new_vectors))
-    print(len(feat_vecs_preds))
+    print(len(feat_vecs_preps))
 
-    return feat_vecs, new_vectors, feat_vecs_preds
+    return feat_vecs, new_vectors, feat_vecs_preps
 
 
-def plot_feature_vectors(vectors_file_name, vector_preds_file_name, predicates):
+def plot_feature_vectors(vectors_file_name, vector_preps_file_name, prepositions):
     # Retrieve dimensionally reduced vectors for each subj/obj/subj-obj
-    label_location = "pred_occurrences/" + vectors_file_name + ".p"
+    label_location = "prep_occurrences/" + vectors_file_name + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
 
-    # Retrieve corresponding most dominant predicate for each subj/obj/subj-obj
-    label_location = "pred_occurrences/" + vector_preds_file_name + ".p"
-    vector_preds = np.asarray(pickle.load(open(label_location, "rb")))
+    # Retrieve corresponding most dominant preposition for each subj/obj/subj-obj
+    label_location = "prep_occurrences/" + vector_preps_file_name + ".p"
+    vector_preps = np.asarray(pickle.load(open(label_location, "rb")))
 
     # # check when IN starts and ends
-    # for i in range(len(vector_preds)):
-    #     if vector_preds[i] == 26:
+    # for i in range(len(vector_preps)):
+    #     if vector_preps[i] == 26:
     #         print(i)
     #         return i
 
@@ -994,151 +1073,223 @@ def plot_feature_vectors(vectors_file_name, vector_preds_file_name, predicates):
     pl.show()
 
 
-def word_vec_classify(vector_names, dominant_pred, classification_method, preds):
+def word_vec_classify(vector_file_name, dominant_prep, classification_method, preps):
     # Retrieve vectors for each word
-    label_location = "pred_occurrences/" + vector_names + ".p"
+    label_location = "prep_occurrences/" + vector_file_name + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
 
-    # Retrieve predicates associated with each word only if reduction_method is 'lda'
-    pred_order_location = "pred_occurrences/" + dominant_pred + ".p"
-    vector_predicates = np.asarray(pickle.load(open(pred_order_location, "rb")))
+    # Retrieve prepositions associated with each word only if reduction_method is 'lda'
+    prep_order_location = "prep_occurrences/" + dominant_prep + ".p"
+    vector_prepositions = np.asarray(pickle.load(open(prep_order_location, "rb")))
 
-    # Cross Validation
+    # Get X and y
     X = np.array(vectors)
-    y = np.array(vector_predicates)
+    y = np.array(vector_prepositions)
 
-    # print(X)
-    # print(y)
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=43)
-
-    # print(len(X_train))
-    # print(len(y_train))
-    # print(len(X_test))
-    # print(len(y_test))
-    #
-    # print(X_train.shape)
-    # print(y_train.shape)
-    # print(X_test.shape)
-    # print(y_test.shape)
+    # Randomly shuffle X and y
+    X, y = shuffle(X, y, random_state=0)
 
     # Number of dimensions to reduce to
-    n_dimensions = 43
+    n_dimensions = len(preps) - 1
 
     # Get priors
     priors_count = []
     total_count = 0.0
-    for pred in preds:
-        data = get_pred_data(pred)
+    for prep in preps:
+        data = get_prep_data(prep)
         priors_count.append(len(data))
         total_count += len(data)
-
+    # print(priors_count)
     for i in range(len(priors_count)):
         priors_count[i] = priors_count[i] / total_count
+    # print("total_count", total_count)
+    # print("priors_count", priors_count)
 
-    print("priors_count", priors_count)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
     # Classify
     if classification_method == 'lda':
-        # print([1.0/44 for i in range(44)])
-        clf = LinearDiscriminantAnalysis(solver='eigen', priors=np.asarray(priors_count), shrinkage=0.5)
-        # clf = LinearDiscriminantAnalysis()
+        clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', priors=np.asarray(priors_count), shrinkage=0.5)
+        # clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', shrinkage=0.5)
 
-        clf.fit(X_train, y_train)
-        count_correct = 0
-        for i in range(len(X_test)):
-            # print([X_test[i]])
-            prediction = clf.predict(np.array([X_test[i]]))
-            if prediction == y_test[i]:
-                count_correct += 1
-        print('count_correct', count_correct)
-        print('test_total', len(X_test))
-        print('percentage:', count_correct / len(X_test))
-        # return
+        scores = cross_val_score(clf, X, y, cv=5)
+        print("lda:", scores)
+        print("mean:", scores.mean())
+
+        # clf.fit(X_train, y_train)
+        #
+        # train_count_correct = 0
+        # for i in range(len(X_train)):
+        #     # print([X_test[i]])
+        #     prediction = clf.predict(np.array([X_train[i]]))
+        #     if prediction == y_train[i]:
+        #         train_count_correct += 1
+        # print('train_count_correct', train_count_correct)
+        # print('train_total', len(X_train))
+        # print('train_percentage:', train_count_correct / len(X_train))
+        #
+        # test_count_correct = 0
+        # for i in range(len(X_test)):
+        #     # print([X_test[i]])
+        #     prediction = clf.predict(np.array([X_test[i]]))
+        #     if prediction == y_test[i]:
+        #         test_count_correct += 1
+        # print('test_count_correct', test_count_correct)
+        # print('test_total', len(X_test))
+        # print('test_percentage:', test_count_correct / len(X_test))
 
     elif classification_method == 'qda':
-        clf = QuadraticDiscriminantAnalysis(priors=np.asarray([1.0/44 for i in range(44)]))
+        clf = QuadraticDiscriminantAnalysis(priors=np.asarray(priors_count))
         # clf = QuadraticDiscriminantAnalysis()
-        clf.fit(X_train, y_train)
-        count_correct = 0
-        for i in range(len(X_test)):
-            # print([X_test[i]])
-            prediction = clf.predict(np.array([X_test[i]]))
-            if prediction == y_test[i]:
-                count_correct += 1
-        print('count_correct', count_correct)
-        print('test_total', len(X_test))
-        print('percentage:', count_correct / len(X_test))
-        # return
+
+        scores = cross_val_score(clf, X, y, cv=5)
+        print("qda:", scores)
+        print("mean:", scores.mean())
+
+        # clf.fit(X_train, y_train)
+        #
+        # train_count_correct = 0
+        # for i in range(len(X_train)):
+        #     # print([X_train[i]])
+        #     prediction = clf.predict(np.array([X_train[i]]))
+        #     if prediction == y_train[i]:
+        #         train_count_correct += 1
+        # print('train_count_correct', train_count_correct)
+        # print('train_test_total', len(X_train))
+        # print('train_percentage:', train_count_correct / len(X_train))
+        #
+        # test_count_correct = 0
+        # for i in range(len(X_test)):
+        #     # print([X_test[i]])
+        #     prediction = clf.predict(np.array([X_test[i]]))
+        #     if prediction == y_test[i]:
+        #         test_count_correct += 1
+        # print('test_count_correct', test_count_correct)
+        # print('test_total', len(X_test))
+        # print('test_percentage:', test_count_correct / len(X_test))
+
+
+def get_word_vectors_and_feature_vectors(prepositions, model, vocab):
+    word_and_feature_vectors = []
+    word_and_feature_vectors_prep = []
+    for prep in prepositions:
+        data = get_prep_data(prep)
+        for i in range(len(data)):
+            if data.iloc[i, 2] in vocab and data.iloc[i, 9] in vocab:
+                concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
+                                                            np.asarray(model[data.iloc[i, 9]])))
+
+                feature_vector = get_feature_vector(data, i)
+
+                word_and_feature_vector = np.concatenate((concatenated_word_vectors, feature_vector))
+                word_and_feature_vectors.append(word_and_feature_vector)
+                word_and_feature_vectors_prep.append(prepositions.index(prep))
+
+                # print(len(word_and_feature_vector))
+        print(prep, "done")
+
+    return word_and_feature_vectors, word_and_feature_vectors_prep
+
+
+def random_data_sampling(prepositions):
+    for prep in prepositions:
+        print(prep)
+        data = get_prep_data(prep)
+        index_list = list(range(0, len(data)))
+        random.shuffle(index_list)
+
+        for i in range(0, 400):
+            box_images(prep, index_list[i])
 
 
 def main():
-    predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
+    prepositions = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
                   "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
                   "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
     # Spatial prepositions
-    # predicates = ["above", "across", "against", "along", "amid", "behind", "beside", "beyond", "in", "on", "under"]
+    prepositions = ["above", "across", "against", "along", "behind", "beside", "beyond", "in", "on", "under"]
 
-    # predicates = ['in', 'on']
+    # prepositions = ['in', 'on']
 
-    # # Plot each predicate by itself
-    # for pred in predicates:
-    #     outlier_img_ids = plot_normalized_centre_points(pred) #return outlier_img_ids for when want to check for weird images
+    # # Plot each preposition by itself
+    # for prep in prepositions:
+    #     outlier_img_ids = plot_normalized_centre_points(prep) #return outlier_img_ids for when want to check for weird images
 
-    # Plot all predicates together, each with different colour
-    # plot_all(predicates)
+    # Plot all prepositions together, each with different colour
+    # plot_all(prepositions)
 
     # # Check for weird images
-    # print(pred + " has " + str(len(outlier_img_ids)) + "/" + str(len(data)) + " (" + str(617/13844*100.0) + "%)"
+    # print(prep + " has " + str(len(outlier_img_ids)) + "/" + str(len(data)) + " (" + str(617/13844*100.0) + "%)"
     #       + " weird images")
     # box_images(outlier_img_ids)
 
-    # # Box all images in order of predicates
-    # box_images(predicates)
+    # # Box all images in order of prepositions
+    # box_images(prepositions)
 
-    # # Dimensionality Reduction
-    # #
-    # # Plot 9 plots. 3 for subj, 3 for obj, 3 for subj - obj. The 3 plots for each subj/obj/subj - obj respectively is
-    # # using a different dimensionality reduction method - PCA, t-SNE, LDA respectively
-    # subj_most_dominant_pred = get_most_dominant_pred('prep_subj')
-    # print(len(subj_most_dominant_pred))
-    # obj_most_dominant_pred = get_most_dominant_pred('prep_obj')
-    # print(len(obj_most_dominant_pred))
-    # subj_obj_most_dominant_pred = get_most_dominant_pred('prep_subj_obj')
-    # print(len(subj_obj_most_dominant_pred))
+    # # Get word vectors for unique obj/subj/subj_obj and their most dominant prep
     #
+    # # Get all unique subj, obj, and (subj, obj)
+    # unique_subj, unique_obj, unique_subj_obj = get_obj_and_subj(prepositions)
     #
-    # # Save obj, subj, subj_obj, pred_order as pickle files
-    # pickle_file(subj_most_dominant_pred, "subj_most_dominant_pred")
-    # print("subj_most_dominant_pred saved")
-    # pickle_file(obj_most_dominant_pred, "obj_most_dominant_pred")
-    # print("obj_most_dominant_pred saved")
-    # pickle_file(subj_obj_most_dominant_pred, "subj_obj_most_dominant_pred")
-    # print("subj_obj_most_dominant_pred saved")
+    # # Sort the subj, obj, and (subj, obj) lists
+    # unique_subj.sort()
+    # unique_obj.sort()
+    # unique_subj_obj.sort()
+    #
+    # # Save unique_obj, unique_subj, unique_subj_obj as pickle files
+    # pickle_file(unique_obj, "unique_obj")
+    # pickle_file(unique_subj, "unique_subj")
+    # pickle_file(unique_subj_obj, "unique_subj_obj")
+    #
+    # # Fill the tables (inputting 3 at once to reduce number of calls)
+    # prep_subj, prep_obj, prep_subj_obj = fill_tables("unique_obj", "unique_subj", "unique_subj_obj", prepositions)
+    #
+    # # Save prep_obj, prep_subj, prep_subj_obj as pickle files
+    # pickle_file(prep_obj, "prep_obj")
+    # pickle_file(prep_subj, "prep_subj")
+    # pickle_file(prep_subj_obj, "prep_subj_obj")
+    #
+    # Plot 9 plots. 3 for subj, 3 for obj, 3 for subj - obj. The 3 plots for each subj/obj/subj - obj respectively is
+    # using a different dimensionality reduction method - PCA, t-SNE, LDA respectively
+    # subj_most_dominant_prep = get_most_dominant_prep('prep_subj')
+    # print(len(subj_most_dominant_prep))
+    # obj_most_dominant_prep = get_most_dominant_prep('prep_obj')
+    # print(len(obj_most_dominant_prep))
+    # subj_obj_most_dominant_prep = get_most_dominant_prep('prep_subj_obj')
+    # print(len(subj_obj_most_dominant_prep))
+    #
+    # # Save obj, subj, subj_obj, prep_order as pickle files
+    # pickle_file(subj_most_dominant_prep, "subj_most_dominant_prep")
+    # print("subj_most_dominant_prep saved")
+    # pickle_file(obj_most_dominant_prep, "obj_most_dominant_prep")
+    # print("obj_most_dominant_prep saved")
+    # pickle_file(subj_obj_most_dominant_prep, "subj_obj_most_dominant_prep")
+    # print("subj_obj_most_dominant_prep saved")
     #
     # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
     # print("word2vec model loaded")
     # word_vectors = model.wv
     # vocab = word_vectors.vocab
     #
-    # subj_vec, subj_vec_preds = word_to_vector("subj", "subj_most_dominant_pred", model, vocab)
+    # subj_vec, subj_vec_preps = word_to_vector("unique_subj", "subj_most_dominant_prep", model, vocab)
     # print('len(subj_vec)', len(subj_vec))
-    # print('len(subj_vec_preds)', len(subj_vec_preds))
+    # print('len(subj_vec_preps)', len(subj_vec_preps))
     # print("subj_vec done")
-    # obj_vec, obj_vec_preds = word_to_vector("obj", "obj_most_dominant_pred", model, vocab)
+    # obj_vec, obj_vec_preps = word_to_vector("unique_obj", "obj_most_dominant_prep", model, vocab)
     # print('len(obj_vec)', len(obj_vec))
-    # print('len(obj_vec_preds)', len(obj_vec_preds))
+    # print('len(obj_vec_preps)', len(obj_vec_preps))
     # print("obj_vec done")
-    # subj_obj_vec, subj_obj_vec_preds = word_to_vector("subj_obj", "subj_obj_most_dominant_pred", model, vocab)
+    # subj_obj_vec, subj_obj_vec_preps = word_to_vector("unique_subj_obj", "subj_obj_most_dominant_prep", model, vocab)
     # print('len(subj_obj_vec)', len(subj_obj_vec))
-    # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
+    # print('len(subj_obj_vec_preps)', len(subj_obj_vec_preps))
     # print("subj_obj_vec done")
-    # subj_obj_add_vec, subj_obj_vec_preds = word_to_vector("subj_obj", "subj_obj_most_dominant_pred", model, vocab)
+    # # Addition vectors
+    # subj_obj_add_vec, subj_obj_vec_preps = word_to_vector("unique_subj_obj", "subj_obj_most_dominant_prep", model, vocab)
     # print('len(subj_obj_add_vec)', len(subj_obj_add_vec))
-    # # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
+    # # print('len(subj_obj_vec_preps)', len(subj_obj_vec_preps))
     # print("subj_obj_add_vec done")
     #
     # pickle_file(subj_vec, "subj_vec")
@@ -1150,26 +1301,26 @@ def main():
     # pickle_file(subj_obj_add_vec, "subj_obj_add_vec")
     # print("subj_obj_add_vec saved")
     #
-    # pickle_file(subj_vec_preds, "subj_vec_preds")
-    # print("subj_vec_preds saved")
-    # pickle_file(obj_vec_preds, "obj_vec_preds")
-    # print("obj_vec_preds saved")
-    # pickle_file(subj_obj_vec_preds, "subj_obj_vec_preds")
-    # print("subj_obj_vec_preds saved")
-    #
+    # pickle_file(subj_vec_preps, "subj_vec_preps")
+    # print("subj_vec_preps saved")
+    # pickle_file(obj_vec_preps, "obj_vec_preps")
+    # print("obj_vec_preps saved")
+    # pickle_file(subj_obj_vec_preps, "subj_obj_vec_preps")
+    # print("subj_obj_vec_preps saved")
+
     # Reduce dimensionality for each subj/obj/subj-obj and each pca/tsne/lda
     #
     # subj_vec_reduced_pca = reduce_dimensionality('subj_vec', None, 'pca')
     # print("subj_vec_reduced_pca reduced")
     # pickle_file(subj_vec_reduced_pca, "subj_vec_reduced_pca")
     # print("subj_vec_reduced_pca saved")
-
+    #
     # subj_vec_reduced_tsne = reduce_dimensionality('subj_vec', None, 'tsne')
     # print("subj_vec_reduced_tsne reduced")
     # pickle_file(subj_vec_reduced_tsne, "subj_vec_reduced_tsne")
     # print("subj_vec_reduced_tsne saved")
     #
-    # subj_vec_reduced_lda = reduce_dimensionality('subj_vec', 'subj_vec_preds', 'lda')
+    # subj_vec_reduced_lda = reduce_dimensionality('subj_vec', 'subj_vec_preps', 'lda')
     # print("subj_vec_reduced_lda reduced")
     # pickle_file(subj_vec_reduced_lda, "subj_vec_reduced_lda")
     # print("subj_vec_reduced_lda saved")
@@ -1178,13 +1329,13 @@ def main():
     # print("obj_vec_reduced_pca reduced")
     # pickle_file(obj_vec_reduced_pca, "obj_vec_reduced_pca")
     # print("obj_vec_reduced_pca saved")
-
+    #
     # obj_vec_reduced_tsne = reduce_dimensionality('obj_vec', None, 'tsne')
     # print("obj_vec_reduced_tsne reduced")
     # pickle_file(obj_vec_reduced_tsne, "obj_vec_reduced_tsne")
     # print("obj_vec_reduced_tsne saved")
     #
-    # obj_vec_reduced_lda = reduce_dimensionality('obj_vec', 'obj_vec_preds', 'lda')
+    # obj_vec_reduced_lda = reduce_dimensionality('obj_vec', 'obj_vec_preps', 'lda')
     # print("obj_vec_reduced_lda reduced")
     # pickle_file(obj_vec_reduced_lda, "obj_vec_reduced_lda")
     # print("obj_vec_reduced_lda saved")
@@ -1193,79 +1344,79 @@ def main():
     # print("sbj_obj_vec_reduced_pca reduced")
     # pickle_file(subj_obj_vec_reduced_pca, "subj_obj_vec_reduced_pca")
     # print("subj_obj_vec_reduced_pca saved")
-
+    #
     # subj_obj_vec_reduced_tsne = reduce_dimensionality('subj_obj_vec', None, 'tsne')
     # print("subj_obj_vec_reduced_tsne reduced")
     # pickle_file(subj_obj_vec_reduced_tsne, "subj_obj_vec_reduced_tsne")
     # print("subj_obj_vec_reduced_tsne saved")
     #
-    # subj_obj_vec_reduced_lda = reduce_dimensionality('subj_obj_vec', 'subj_obj_vec_preds', 'lda')
+    # subj_obj_vec_reduced_lda = reduce_dimensionality('subj_obj_vec', 'subj_obj_vec_preps', 'lda')
     # print("subj_obj_vec_reduced_lda reduced")
     # pickle_file(subj_obj_vec_reduced_lda, "subj_obj_vec_reduced_lda")
     # print("subj_obj_vec_reduced_lda saved")
     #
-    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preds', 'lda')
+    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preps', 'lda')
     # print("subj_obj_add_vec_reduced_lda reduced")
     # pickle_file(subj_obj_add_vec_reduced_lda, "subj_obj_add_vec_reduced_lda")
     # print("subj_obj_add_vec_reduced_lda saved")
 
     # Plot all dimensionality reduced plots
+    #
+    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preps", "Subjects: PCA", "2", prepositions)
+    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preps", "Objects: PCA", "2", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preps", "Subjects - Objects: PCA", "2", prepositions)
+    #
+    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preps", "Subjects: t-SNE", "2", prepositions)
+    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preps", "Objects: t-SNE", "2", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preps", "Subjects - Objects: t-SNE", "2", prepositions)
+    #
+    # plot_vectors("subj_vec_reduced_lda", "subj_vec_preps", "Subjects: LDA", "2", prepositions)
+    # plot_vectors("obj_vec_reduced_lda", "obj_vec_preps", "Objects: LDA", "2", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_lda", "subj_obj_vec_preps", "Subjects - Objects: LDA", "2", prepositions)
+    # plot_vectors("subj_obj_add_vec_reduced_lda", "subj_obj_vec_preps", "Subjects + Objects: LDA", "2", prepositions)
+    #
+    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preps", "Subjects: PCA", "3", prepositions)
+    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preps", "Objects: PCA", "3", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preps", "Subjects - Objects: PCA", "3", prepositions)
+    #
+    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preps", "Subjects: t-SNE", "3", prepositions)
+    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preps", "Objects: t-SNE", "3", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preps", "Subjects - Objects: t-SNE", "3", prepositions)
+    #
+    # plot_vectors("subj_vec_reduced_lda", "subj_vec_preps", "Subjects: LDA", "3", prepositions)
+    # plot_vectors("obj_vec_reduced_lda", "obj_vec_preps", "Objects: LDA", "3", prepositions)
+    # plot_vectors("subj_obj_vec_reduced_lda", "subj_obj_vec_preps", "Subjects - Objects: LDA", "3", prepositions)
 
-    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "2", predicates)
-    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "2", predicates)
-    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "2", predicates)
-    #
-    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "2", predicates)
-    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "2", predicates)
-    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "2", predicates)
-    #
-    # plot_vectors("subj_vec_reduced_lda", "subj_vec_preds", "Subjects: LDA", "2", predicates)
-    # plot_vectors("obj_vec_reduced_lda", "obj_vec_preds", "Objects: LDA", "2", predicates)
-    # plot_vectors("subj_obj_vec_reduced_lda", "subj_obj_vec_preds", "Subjects - Objects: LDA", "2", predicates)
-    # plot_vectors("subj_obj_add_vec_reduced_lda", "subj_obj_vec_preds", "Subjects + Objects: LDA", "2", predicates)
-    #
-    # plot_vectors("subj_vec_reduced_pca", "subj_vec_preds", "Subjects: PCA", "3", predicates)
-    # plot_vectors("obj_vec_reduced_pca", "obj_vec_preds", "Objects: PCA", "3", predicates)
-    # plot_vectors("subj_obj_vec_reduced_pca", "subj_obj_vec_preds", "Subjects - Objects: PCA", "3", predicates)
-    #
-    # plot_vectors("subj_vec_reduced_tsne", "subj_vec_preds", "Subjects: t-SNE", "3", predicates)
-    # plot_vectors("obj_vec_reduced_tsne", "obj_vec_preds", "Objects: t-SNE", "3", predicates)
-    # plot_vectors("subj_obj_vec_reduced_tsne", "subj_obj_vec_preds", "Subjects - Objects: t-SNE", "3", predicates)
-    #
-    # plot_vectors("subj_vec_reduced_lda", "subj_vec_preds", "Subjects: LDA", "3", predicates)
-    # plot_vectors("obj_vec_reduced_lda", "obj_vec_preds", "Objects: LDA", "3", predicates)
-    # plot_vectors("subj_obj_vec_reduced_lda", "subj_obj_vec_preds", "Subjects - Objects: LDA", "3", predicates)
-    #
-    #
+
     # # Bounding Box Method
     #
-    # Get longest edge of all subjs and objs of all predicates
-    # longest_separation, longest_separation_pred, longest_separation_pred_index, longest_separation_img_id \
-    #     = find_longest_separation(predicates)
+    # Get longest edge of all subjs and objs of all prepositions
+    # longest_separation, longest_separation_prep, longest_separation_prep_index, longest_separation_img_id \
+    #     = find_longest_separation(prepositions)
     # longest_edge = 1281
     # longest_separation = 1126.0
-    # print('find_longest(predicates) done')
+    # print('find_longest(prepositions) done')
     # print('longest_separation', longest_separation)
-    # print('longest_separation_pred', longest_separation_pred)
-    # print('longest_separation_pred_index', longest_separation_pred_index)
+    # print('longest_separation_prep', longest_separation_prep)
+    # print('longest_separation_prep_index', longest_separation_prep_index)
     # print('longest_separation_img_id', longest_separation_img_id)
-
+    #
     # decrease_factor = 0.5 / longest_edge
     # normalized_longest_separation = longest_separation * decrease_factor
     # print('decrease_factor', decrease_factor)
     # print('normalized_longest_separation', normalized_longest_separation)
-
-    # for pred in predicates:
-    #     get_bounding_box_vectors(pred, decrease_factor, normalized_longest_separation)
+    #
+    # for prep in prepositions:
+    #     get_bounding_box_vectors(prep, decrease_factor, normalized_longest_separation)
     # print('longest_edge', longest_edge)
-
-    # for pred in predicates:
-    #     get_normalized_bounding_box_vectors(pred, 1)
+    #
+    # for prep in prepositions:
+    #     get_normalized_bounding_box_vectors(prep, 1)
     # print('longest_edge', longest_edge)
 
 
     # For presentation
-
+    #
     # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
     # print("word2vec model loaded")
     # # word_vectors = model.wv
@@ -1275,12 +1426,12 @@ def main():
     # print(len(model["cup"]))
     # print("table", model["table"])
     # print(len(model["table"]))
-    # # subj_vec, subj_vec_preds = word_to_vector("subj", "subj_most_dominant_pred", model, vocab)
+    # # subj_vec, subj_vec_preps = word_to_vector("subj", "subj_most_dominant_prep", model, vocab)
 
     # # Plot individual normalized points ##################
     #
-    # pred = "above"
-    # data = get_pred_data(pred)
+    # prep = "above"
+    # data = get_prep_data(prep)
     # i = 53
     # obj_centre_x = float(data.iloc[i, 5]) + (float(data.iloc[i, 4]) / 2.0)
     # obj_centre_y = float(data.iloc[i, 6]) + (float(data.iloc[i, 3]) / 2.0)
@@ -1291,7 +1442,7 @@ def main():
     # y_normalized_diff = (obj_centre_y - subj_centre_y) / float(data.iloc[i, 16])
     #
     # plt.figure(figsize=(5, 5))
-    # plt.title(pred)
+    # plt.title(prep)
     # plt.plot(x_normalized_diff, y_normalized_diff, 'ro', markersize=3)
     # plt.plot(0, 0, 'bo', markersize=3)
     # plt.axis([-1, 1, -1, 1])
@@ -1302,32 +1453,32 @@ def main():
     #
     # # Keep plot graph square
     # plt.gca().set_aspect('equal', adjustable='box')
-    # plt.savefig("../Presentation-Images/" + pred + "_" + str(i) + "_centroid.png", dpi=300)
+    # plt.savefig("../Presentation-Images/" + prep + "_" + str(i) + "_centroid.png", dpi=300)
     #
     # plt.show()
     #
     # ##############################################
 
-    # for pred in predicates:
-    #     feature_vectors = get_feature_vectors(pred)
-    #     pickle_file(feature_vectors, pred + "_feat_vecs")
-    #     print(pred + " feature vectors saved")
+    # for prep in prepositions:
+    #     feature_vectors = get_feature_vectors(prep)
+    #     pickle_file(feature_vectors, prep + "_feat_vecs")
+    #     print(prep + " feature vectors saved")
     #
-    # feature_vectors, dim_reduce_feature_vectors, feature_vectors_preds = dim_reduc_feat_vecs(predicates)
+    # feature_vectors, dim_reduce_feature_vectors, feature_vectors_preps = dim_reduc_feat_vecs(prepositions)
     # pickle_file(feature_vectors, "feature_vectors")
     # pickle_file(dim_reduce_feature_vectors, "dim_reduce_feature_vectors")
-    # pickle_file(feature_vectors_preds, "feature_vectors_preds")
+    # pickle_file(feature_vectors_preps, "feature_vectors_preps")
 
-    # plot_vectors("dim_reduce_feature_vectors", "dim_reduce_feature_vectors_preds", 'hi', '2', predicates)
-    # plot_feature_vectors("dim_reduce_feature_vectors", "feature_vectors_preds", predicates)
-    # plot_feature_vectors("feature_vectors", "feature_vectors_preds", predicates)
+    # plot_vectors("dim_reduce_feature_vectors", "dim_reduce_feature_vectors_preps", 'hi', '2', prepositions)
+    # plot_feature_vectors("dim_reduce_feature_vectors", "feature_vectors_preps", prepositions)
+    # plot_feature_vectors("feature_vectors", "feature_vectors_preps", prepositions)
     #
     #
-    # in_feat_vec_location = "pred_occurrences/" + predicates[20] + "_feat_vecs.p"
+    # in_feat_vec_location = "prep_occurrences/" + prepositions[20] + "_feat_vecs.p"
     # in_feat_vecs = np.asarray(pickle.load(open(in_feat_vec_location, "rb")))
     # in_overlap_vecs = in_feat_vecs[:, 4]
     #
-    # on_feat_vec_location = "pred_occurrences/" + predicates[25] + "_feat_vecs.p"
+    # on_feat_vec_location = "prep_occurrences/" + prepositions[25] + "_feat_vecs.p"
     # on_feat_vecs = np.asarray(pickle.load(open(on_feat_vec_location, "rb")))
     # on_overlap_vecs = on_feat_vecs[:, 4]
     #
@@ -1343,40 +1494,54 @@ def main():
 
     # Classifiers ######################
 
-    # All prepositions
-
-    word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preds', 'lda', predicates)
-    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preds', 'qda')
-
-    # JUST IN and ON
-
-    subj_obj_most_dominant_pred = get_most_dominant_pred('in_on_prep_subj_obj')
-    print(len(subj_obj_most_dominant_pred))
-
-    pickle_file(subj_obj_most_dominant_pred, "in_on_subj_obj_most_dominant_pred")
-    print("in_on_subj_obj_most_dominant_pred saved")
-
+    # # All prepositions
+    #
     model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
     print("word2vec model loaded")
     word_vectors = model.wv
     vocab = word_vectors.vocab
 
-    subj_obj_vec, subj_obj_vec_preds = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_pred", model, vocab)
-    print('len(in_on_subj_obj_vec)', len(subj_obj_vec))
-    print('len(in_on_subj_obj_vec_preds)', len(subj_obj_vec_preds))
-    print("in_on_subj_obj_vec done")
-    subj_obj_add_vec, subj_obj_vec_preds = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_pred", model, vocab)
-    print('len(in_on_subj_obj_add_vec)', len(subj_obj_add_vec))
-    # print('len(subj_obj_vec_preds)', len(subj_obj_vec_preds))
-    print("in_on_subj_obj_add_vec done")
+    word_and_feature_vectors, word_and_feature_vectors_prep = get_word_vectors_and_feature_vectors(prepositions, model, vocab)
 
-    pickle_file(subj_obj_vec, "in_on_subj_obj_vec")
-    print("in_on_subj_obj_vec saved")
-    pickle_file(subj_obj_add_vec, "in_on_subj_obj_add_vec")
-    print("in_on_subj_obj_add_vec saved")
+    pickle_file("word_and_feature_vectors", word_and_feature_vectors)
+    pickle_file("word_and_feature_vectors_prep", word_and_feature_vectors_prep)
 
-    pickle_file(subj_obj_vec_preds, "in_on_subj_obj_vec_preds")
-    print("in_on_subj_obj_vec_preds saved")
+    word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'lda', prepositions)
+    word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'qda', prepositions)
+
+    # Using concat(subj, obj), LDA and QDA accuracy are on avg 0.51161 and 0.63085897
+    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'lda', prepositions)
+    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'qda', prepositions)
+
+    # JUST IN and ON
+
+    # subj_obj_most_dominant_prep = get_most_dominant_prep('in_on_prep_subj_obj')
+    # print(len(subj_obj_most_dominant_prep))
+    #
+    # pickle_file(subj_obj_most_dominant_prep, "in_on_subj_obj_most_dominant_prep")
+    # print("in_on_subj_obj_most_dominant_prep saved")
+    #
+    # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+    # print("word2vec model loaded")
+    # word_vectors = model.wv
+    # vocab = word_vectors.vocab
+    #
+    # subj_obj_vec, subj_obj_vec_preps = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_prep", model, vocab)
+    # print('len(in_on_subj_obj_vec)', len(subj_obj_vec))
+    # print('len(in_on_subj_obj_vec_preps)', len(subj_obj_vec_preps))
+    # print("in_on_subj_obj_vec done")
+    # subj_obj_add_vec, subj_obj_vec_preps = word_to_vector("in_on_subj_obj", "in_on_subj_obj_most_dominant_prep", model, vocab)
+    # print('len(in_on_subj_obj_add_vec)', len(subj_obj_add_vec))
+    # # print('len(subj_obj_vec_preps)', len(subj_obj_vec_preps))
+    # print("in_on_subj_obj_add_vec done")
+    #
+    # pickle_file(subj_obj_vec, "in_on_subj_obj_vec")
+    # print("in_on_subj_obj_vec saved")
+    # pickle_file(subj_obj_add_vec, "in_on_subj_obj_add_vec")
+    # print("in_on_subj_obj_add_vec saved")
+    #
+    # pickle_file(subj_obj_vec_preps, "in_on_subj_obj_vec_preps")
+    # print("in_on_subj_obj_vec_preps saved")
     #
     # Reduce dimensionality for each subj/obj/subj-obj and each pca/tsne/lda
     #
@@ -1390,7 +1555,7 @@ def main():
     # pickle_file(subj_vec_reduced_tsne, "subj_vec_reduced_tsne")
     # print("subj_vec_reduced_tsne saved")
     #
-    # subj_vec_reduced_lda = reduce_dimensionality('subj_vec', 'subj_vec_preds', 'lda')
+    # subj_vec_reduced_lda = reduce_dimensionality('subj_vec', 'subj_vec_preps', 'lda')
     # print("subj_vec_reduced_lda reduced")
     # pickle_file(subj_vec_reduced_lda, "subj_vec_reduced_lda")
     # print("subj_vec_reduced_lda saved")
@@ -1405,7 +1570,7 @@ def main():
     # pickle_file(obj_vec_reduced_tsne, "obj_vec_reduced_tsne")
     # print("obj_vec_reduced_tsne saved")
     #
-    # obj_vec_reduced_lda = reduce_dimensionality('obj_vec', 'obj_vec_preds', 'lda')
+    # obj_vec_reduced_lda = reduce_dimensionality('obj_vec', 'obj_vec_preps', 'lda')
     # print("obj_vec_reduced_lda reduced")
     # pickle_file(obj_vec_reduced_lda, "obj_vec_reduced_lda")
     # print("obj_vec_reduced_lda saved")
@@ -1420,19 +1585,22 @@ def main():
     # pickle_file(subj_obj_vec_reduced_tsne, "subj_obj_vec_reduced_tsne")
     # print("subj_obj_vec_reduced_tsne saved")
     #
-    # subj_obj_vec_reduced_lda = reduce_dimensionality('subj_obj_vec', 'subj_obj_vec_preds', 'lda')
+    # subj_obj_vec_reduced_lda = reduce_dimensionality('subj_obj_vec', 'subj_obj_vec_preps', 'lda')
     # print("subj_obj_vec_reduced_lda reduced")
     # pickle_file(subj_obj_vec_reduced_lda, "subj_obj_vec_reduced_lda")
     # print("subj_obj_vec_reduced_lda saved")
     #
-    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preds', 'lda')
+    # subj_obj_add_vec_reduced_lda = reduce_dimensionality('subj_obj_add_vec', 'subj_obj_vec_preps', 'lda')
     # print("subj_obj_add_vec_reduced_lda reduced")
     # pickle_file(subj_obj_add_vec_reduced_lda, "subj_obj_add_vec_reduced_lda")
     # print("subj_obj_add_vec_reduced_lda saved")
 
-    word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preds', 'lda', predicates)
-    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preds', 'qda')
+    # word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preps', 'lda', prepositions)
+    # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'qda', prepositions)
 
+
+    # # Sample high quality data
+    # random_data_sampling(prepositions)
 
 
 if __name__ == "__main__":

@@ -5,85 +5,44 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def get_data(pred):
-    file_address = 'new_pred/data_pred_' + pred + '.csv'
+def get_data(prep):
+    file_address = 'new_prep/data_prep_' + prep + '.csv'
     dataset = pd.read_csv(file_address, encoding="ISO-8859-1")
     return dataset
 
 
-def get_obj_and_subj(predicates):
-    subj = []
-    obj = []
-    subj_obj = []
-
-    # Loop through data rows and add new subjects and objects to subjects and objects unique list
-    for pred in predicates:
-        data = get_data(pred)
-        for i in range(len(data)):
-            if data.iloc[i, 2] not in obj:
-                # print("data.iloc[i, 2]:", data.iloc[i, 2])
-                obj.append(data.iloc[i, 2])
-            if data.iloc[i, 9] not in subj:
-                # print("data.iloc[i, 9]:", data.iloc[i, 9])
-                subj.append(data.iloc[i, 9])
-            if (data.iloc[i, 9], data.iloc[i, 2]) not in subj_obj:
-                # print("data.iloc[i, 9], data.iloc[i, 2]:", data.iloc[i,9], ",", data.iloc[i,2])
-                subj_obj.append((data.iloc[i, 9], data.iloc[i, 2]))
-        print("get_obj_and_subj:", pred, "done")
-
-    return subj, obj, subj_obj
-
-
-def fill_tables(obj, subj, subj_obj, predicates):
-    # Fill tables of obj, subj, and subj_obj where each row has counts of the number of appearances of each predicate
-    # for each unique thing
-    prep_subj = np.zeros((len(subj), len(predicates)))
-    prep_obj = np.zeros((len(obj), len(predicates)))
-    prep_subj_obj = np.zeros((len(subj_obj), len(predicates)))
-
-    for pred in predicates:
-        data = get_data(pred)
-        for i in range(len(data)):
-            prep_obj[obj.index(data.iloc[i, 2]), predicates.index(pred)] += 1
-            prep_subj[subj.index(data.iloc[i, 9]), predicates.index(pred)] += 1
-            prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2])), predicates.index(pred)] += 1
-        print("fill_tables:", pred, "done")
-
-    return prep_subj, prep_obj, prep_subj_obj
-
-
 def pickle_file(table, name):
     # https://wiki.python.org/moin/UsingPickle
-    file_name = "pred_occurrences/" + name + ".p"
+    file_name = "prep_occurrences/" + name + ".p"
     with open(file_name, "wb") as fp:  # Pickling
         pickle.dump(table, fp)
 
 
-def to_pie_graph(table_name, predicates):
+def to_pie_graph(table_name, prepositions):
     # If retrieve table from pickled file
     # https://wiki.python.org/moin/UsingPickle
-    table_location = "pred_occurrences/prep_" + table_name + ".p"
+    table_location = "prep_occurrences/prep_" + table_name + ".p"
     table = pickle.load(open(table_location, "rb"))
 
     # Retrieve labels for each row in table
-    label_location = "pred_occurrences/" + table_name + ".p"
+    label_location = "prep_occurrences/" + table_name + ".p"
     label_names = pickle.load(open(label_location, "rb"))
 
     for i in range(len(table)):
         row_sum = int(sum(table[i]))
 
-        # Only plot obj/subj/(subj, obj) that uses 1000+ predicates
+        # Only plot obj/subj/(subj, obj) that uses 1000+ prepositions
         if row_sum >= 1000:
             legend_labels = []
-            for j in range(len(predicates)):
-                legend_label = predicates[j] + ": " + str(int(table[i][j])) + "/" + str(row_sum) + \
+            for j in range(len(prepositions)):
+                legend_label = prepositions[j] + ": " + str(int(table[i][j])) + "/" + str(row_sum) + \
                         " (" + str("{0:.2f}".format(table[i][j] / row_sum * 100)) + "%)"
                 legend_labels.append(legend_label)
 
             row = table[i]
 
-            # Only keep predicates that occur at least once for this subj/obj/(subj, obj), and
-            # sort the predicate occurrences from most used to least used
+            # Only keep prepositions that occur at least once for this subj/obj/(subj, obj), and
+            # sort the preposition occurrences from most used to least used
             np_row = np.array(row)
             np_labels = np.array(legend_labels)
             count_nonzero = np.count_nonzero(np_row)
@@ -115,25 +74,25 @@ def to_pie_graph(table_name, predicates):
             # plt.show()
 
 
-def get_most_frequent(table_name, most_frequent_table, predicates):
+def get_most_frequent(table_name, most_frequent_table, prepositions):
     # If retrieve table from pickled file
     # https://wiki.python.org/moin/UsingPickle
-    table_location = "pred_occurrences/prep_" + table_name + ".p"
+    table_location = "prep_occurrences/prep_" + table_name + ".p"
     table = pickle.load(open(table_location, "rb"))
 
     for i in range(len(table)):
-        for j in range(len(predicates)):
+        for j in range(len(prepositions)):
             most_frequent_table[j, i] = table[i, j]
 
 
-def to_prep_pie_graph(table_name, predicates):
+def to_prep_pie_graph(table_name, prepositions):
     # If retrieve table from pickled file
     # https://wiki.python.org/moin/UsingPickle
-    table_location = "pred_occurrences/most_frequent_" + table_name + ".p"
+    table_location = "prep_occurrences/most_frequent_" + table_name + ".p"
     table = pickle.load(open(table_location, "rb"))
 
     # Retrieve labels for each row in table
-    label_location = "pred_occurrences/" + table_name + ".p"
+    label_location = "prep_occurrences/" + table_name + ".p"
     label_names = pickle.load(open(label_location, "rb"))
 
     for i in range(len(table)):
@@ -148,7 +107,7 @@ def to_prep_pie_graph(table_name, predicates):
             legend_labels.append(legend_label)
 
         # Create pie chart
-        label_name = predicates[i]
+        label_name = prepositions[i]
         plt.figure(figsize=(14, 7))
         plt.title(label_name)
         patches, texts = plt.pie(table[i][most_frequent_indices], startangle=90, counterclock=False)
@@ -158,20 +117,49 @@ def to_prep_pie_graph(table_name, predicates):
         plt.axis('equal')
 
         # Save image
-        plt.savefig("pred_pie_chart/" + table_name + "/" + predicates[i] + "_pie_chart.pdf")
+        plt.savefig("prep_pie_chart/" + table_name + "/" + prepositions[i] + "_pie_chart.pdf")
 
         # plt.show()
 
 
 def main():
-    predicates = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
+    prepositions = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
                   "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
                   "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
                   "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
                   "within", "without"]
 
+    # Spatial prepositions
+    prepositions = ["above", "across", "against", "along", "behind", "beside", "beyond", "in", "on", "under"]
+
+    # # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
+    # to_pie_graph("subj_obj", prepositions)
+    # to_pie_graph("subj", prepositions)
+    # to_pie_graph("obj", prepositions)
+
+    # # Generate Pie Charts for each preposition and its 10 or 20 or whatever most frequent obj/subj/subj, obj
+    # # Want size of subj_obj to do next thing
+    # prep_subj_obj_size = len(pickle.load(open("prep_occurrences/prep_subj_obj.p", "rb")))
+    #
+    # # Initialize most frequent obj/subj/subj_obj of each preposition tables
+    # prep_most_frequent_subj_obj = np.zeros((len(prepositions), prep_subj_obj_size))
+    #
+    # # Fill preposition most frequent obj/subj/subj_obj tables
+    # get_most_frequent("subj_obj", prep_most_frequent_subj_obj, prepositions)
+    #
+    # # Save most frequent obj/subj/subj_obj tables
+    # pickle_file(prep_most_frequent_subj_obj, "most_frequent_subj_obj")
+
+    # Plot preposition most frequent obj/subj/subj_obj tables
+    # to_prep_pie_graph("subj_obj", prepositions)
+
+
+    # # Get only in/on subj and obj
+    #
+    # prepositions = ["in", "on"]
+    #
     # # Get all unique subj, obj, and (subj, obj)
-    # subj, obj, subj_obj = get_obj_and_subj(predicates)
+    # subj, obj, subj_obj = get_obj_and_subj(prepositions)
     #
     # # Sort the subj, obj, and (subj, obj) lists
     # subj.sort()
@@ -179,64 +167,17 @@ def main():
     # subj_obj.sort()
     #
     # # Fill the tables (inputting 3 at once to reduce number of calls)
-    # prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
+    # prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, prepositions)
     #
     # # Save obj, subj, subj_obj as pickle files
-    # pickle_file(obj, "obj")
-    # pickle_file(subj, "subj")
-    # pickle_file(subj_obj, "subj_obj")
+    # pickle_file(obj, "in_on_obj")
+    # pickle_file(subj, "in_on_subj")
+    # pickle_file(subj_obj, "in_on_subj_obj")
     #
     # # Save prep_obj, prep_subj, prep_subj_obj as pickle files
-    # pickle_file(prep_obj, "prep_obj")
-    # pickle_file(prep_subj, "prep_subj")
-    # pickle_file(prep_subj_obj, "prep_subj_obj")
-
-    # # Generate Pie Graphs for each table subj, obj, and (subj, obj) (Retrieve tables from pickled files)
-    # to_pie_graph("subj_obj", predicates)
-    # to_pie_graph("subj", predicates)
-    # to_pie_graph("obj", predicates)
-
-    # # Generate Pie Charts for each predicate and its 10 or 20 or whatever most frequent obj/subj/subj, obj
-    # # Want size of subj_obj to do next thing
-    # prep_subj_obj_size = len(pickle.load(open("pred_occurrences/prep_subj_obj.p", "rb")))
-    #
-    # # Initialize most frequent obj/subj/subj_obj of each predicate tables
-    # prep_most_frequent_subj_obj = np.zeros((len(predicates), prep_subj_obj_size))
-    #
-    # # Fill predicate most frequent obj/subj/subj_obj tables
-    # get_most_frequent("subj_obj", prep_most_frequent_subj_obj, predicates)
-    #
-    # # Save most frequent obj/subj/subj_obj tables
-    # pickle_file(prep_most_frequent_subj_obj, "most_frequent_subj_obj")
-
-    # Plot predicate most frequent obj/subj/subj_obj tables
-    # to_prep_pie_graph("subj_obj", predicates)
-
-
-    # Get only in/on subj and obj
-
-    predicates = ["in", "on"]
-
-    # Get all unique subj, obj, and (subj, obj)
-    subj, obj, subj_obj = get_obj_and_subj(predicates)
-
-    # Sort the subj, obj, and (subj, obj) lists
-    subj.sort()
-    obj.sort()
-    subj_obj.sort()
-
-    # Fill the tables (inputting 3 at once to reduce number of calls)
-    prep_subj, prep_obj, prep_subj_obj = fill_tables(obj, subj, subj_obj, predicates)
-
-    # Save obj, subj, subj_obj as pickle files
-    pickle_file(obj, "in_on_obj")
-    pickle_file(subj, "in_on_subj")
-    pickle_file(subj_obj, "in_on_subj_obj")
-
-    # Save prep_obj, prep_subj, prep_subj_obj as pickle files
-    pickle_file(prep_obj, "in_on_prep_obj")
-    pickle_file(prep_subj, "in_on_prep_subj")
-    pickle_file(prep_subj_obj, "in_on_prep_subj_obj")
+    # pickle_file(prep_obj, "in_on_prep_obj")
+    # pickle_file(prep_subj, "in_on_prep_subj")
+    # pickle_file(prep_subj_obj, "in_on_prep_subj_obj")
 
 
 if __name__ == "__main__":
