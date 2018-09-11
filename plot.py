@@ -81,6 +81,16 @@ def fill_tables(obj_file, subj_file, subj_obj_file, prepositions):
     return prep_subj, prep_obj, prep_subj_obj
 
 
+# def normalize_table(prep_subj_obj_file_name):
+#     prep_subj_obj_file_location = "prep_occurrences/" + prep_subj_obj_file_name + ".p"
+#     prep_subj_obj = pickle.load(open(prep_subj_obj_file_location, "rb"))
+#
+#     for i in range(len(prep_subj_obj)):
+#         print(prep_subj_obj[i])
+#
+#     print(prep_subj_obj)
+
+
 def get_most_dominant_prep(table_name):
     # Retrieve counts for each prep occurrence for each item in table
     table_location = "prep_occurrences/" + table_name + ".p"
@@ -1169,11 +1179,18 @@ def word_vec_classify(vector_file_name, dominant_prep, classification_method, pr
         # print('test_percentage:', test_count_correct / len(X_test))
 
 
-def get_word_vectors_and_feature_vectors(prepositions, model, vocab):
+def get_word_vectors_and_feature_vectors(prepositions, subj_obj_file, prep_subj_obj_file_name, model, vocab):
     word_and_feature_vectors = []
     word_and_feature_vectors_prep = []
     for prep in prepositions:
         data = get_prep_data(prep)
+
+        subj_obj_file_location = "prep_occurrences/" + subj_obj_file + ".p"
+        subj_obj = pickle.load(open(subj_obj_file_location, "rb"))
+
+        prep_subj_obj_file_location = "prep_occurrences/" + prep_subj_obj_file_name + ".p"
+        prep_subj_obj = pickle.load(open(prep_subj_obj_file_location, "rb"))
+
         for i in range(len(data)):
             if data.iloc[i, 2] in vocab and data.iloc[i, 9] in vocab:
                 concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
@@ -1181,8 +1198,17 @@ def get_word_vectors_and_feature_vectors(prepositions, model, vocab):
 
                 feature_vector = get_feature_vector(data, i)
 
-                word_and_feature_vector = np.concatenate((concatenated_word_vectors, feature_vector))
+                prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
+                divisor = sum(prep_frequencies)
+                normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
+
+                word_and_feature_vector = np.concatenate((concatenated_word_vectors, feature_vector,
+                                                          normalized_prep_frequencies))
+
+                # print(len(word_and_feature_vector))
+
                 word_and_feature_vectors.append(word_and_feature_vector)
+
                 word_and_feature_vectors_prep.append(prepositions.index(prep))
 
                 # print(len(word_and_feature_vector))
@@ -1494,22 +1520,29 @@ def main():
 
     # Classifiers ######################
 
-    # # All prepositions
-    #
+    # All prepositions
+
     model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
     print("word2vec model loaded")
     word_vectors = model.wv
     vocab = word_vectors.vocab
 
-    word_and_feature_vectors, word_and_feature_vectors_prep = get_word_vectors_and_feature_vectors(prepositions, model, vocab)
+    word_and_feature_vectors, word_and_feature_vectors_prep = get_word_vectors_and_feature_vectors(prepositions,
+                                                                                                   "unique_subj_obj",
+                                                                                                   "prep_subj_obj",
+                                                                                                   model, vocab)
 
-    pickle_file("word_and_feature_vectors", word_and_feature_vectors)
-    pickle_file("word_and_feature_vectors_prep", word_and_feature_vectors_prep)
+    pickle_file(word_and_feature_vectors, "word_and_feature_vectors")
+    pickle_file(word_and_feature_vectors_prep, "word_and_feature_vectors_prep")
 
+    # Using concat(subj, obj, feature_vectors), LDA and QDA accuracy are on avg 0.63084 and 0.25897
+    # Using concat(subj, obj, feature_vectors, prep_frequencies), LDA and QDA accuracy are on avg 0.7543 and 0.2721
+    print("Concatenated Word Vectors and Feature Vectors:")
     word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'lda', prepositions)
     word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'qda', prepositions)
 
-    # Using concat(subj, obj), LDA and QDA accuracy are on avg 0.51161 and 0.63085897
+    # # Using concat(subj, obj), LDA and QDA accuracy are on avg 0.51161 and 0.63085897
+    # print("Concatenated Word Vectors:")
     # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'lda', prepositions)
     # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'qda', prepositions)
 
