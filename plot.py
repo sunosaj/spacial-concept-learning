@@ -22,6 +22,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 from sklearn.model_selection import cross_val_score
 import random
+from sklearn.model_selection import KFold
+from scipy.spatial import distance
 
 
 def get_prep_data(prep):
@@ -913,15 +915,21 @@ def get_feature_vector(data, i):
     subj_area = float(data.iloc[i, 11]) * float(data.iloc[i, 10])
 
     factor = 1 / math.sqrt(data.iloc[i, 4] * data.iloc[i, 3])
-
     x_diff = (float(data.iloc[i, 12]) - float(data.iloc[i, 5])) * factor
     y_diff = (float(data.iloc[i, 13]) - float(data.iloc[i, 6])) * factor
     width_diff = (float(data.iloc[i, 11]) - float(data.iloc[i, 4])) * factor
     height_diff = (float(data.iloc[i, 10]) - float(data.iloc[i, 3])) * factor
     x_cent_diff = (x_diff + (0.5 * width_diff)) * factor
     y_cent_diff = (y_diff + (0.5 * height_diff)) * factor
-    area_ratio = (float(data.iloc[i, 11]) * float(data.iloc[i, 10])) / \
-                 (float(data.iloc[i, 4]) * float(data.iloc[i, 3]))
+
+    # x_diff_ratio = (float(data.iloc[i, 12]) - float(data.iloc[i, 5])) / float(data.iloc[i, 15])
+    # y_diff_ratio = (float(data.iloc[i, 13]) - float(data.iloc[i, 6])) / float(data.iloc[i, 16])
+    # width_ratio = (float(data.iloc[i, 11]) - float(data.iloc[i, 4])) / float(data.iloc[i, 15])
+    # height_ratio = (float(data.iloc[i, 10]) - float(data.iloc[i, 3])) / float(data.iloc[i, 16])
+    # x_cent_diff_ratio = ((float(data.iloc[i, 12]) - float(data.iloc[i, 5])) + (0.5 * (float(data.iloc[i, 11]) - float(data.iloc[i, 4]))))
+    # y_cent_diff_ratio = ((float(data.iloc[i, 13]) - float(data.iloc[i, 6])) + (0.5 * (float(data.iloc[i, 10]) - float(data.iloc[i, 3]))))
+
+    area_ratio = (float(data.iloc[i, 11]) * float(data.iloc[i, 10])) / (float(data.iloc[i, 4]) * float(data.iloc[i, 3]))
 
     overlap_width = 0
     overlap_height = 0
@@ -967,7 +975,10 @@ def get_feature_vector(data, i):
     if amount_overlap > 1 or amount_overlap < 0:
         print('something is wrong')
         return
+
+    # feature_vector = np.asarray([x_diff_ratio, y_diff_ratio, x_cent_diff_ratio, y_cent_diff_ratio, amount_overlap, width_ratio, height_ratio, area_ratio])
     feature_vector = np.asarray([x_diff, y_diff, x_cent_diff, y_cent_diff, amount_overlap, width_diff, height_diff, area_ratio])
+
 
     return feature_vector
 
@@ -1083,13 +1094,13 @@ def plot_feature_vectors(vectors_file_name, vector_preps_file_name, prepositions
     pl.show()
 
 
-def word_vec_classify(vector_file_name, dominant_prep, classification_method, preps):
+def word_vec_classify(vector_file_name, vector_prep_file_name, classification_method, preps):
     # Retrieve vectors for each word
     label_location = "prep_occurrences/" + vector_file_name + ".p"
     vectors = np.asarray(pickle.load(open(label_location, "rb")))
 
     # Retrieve prepositions associated with each word only if reduction_method is 'lda'
-    prep_order_location = "prep_occurrences/" + dominant_prep + ".p"
+    prep_order_location = "prep_occurrences/" + vector_prep_file_name + ".p"
     vector_prepositions = np.asarray(pickle.load(open(prep_order_location, "rb")))
 
     # Get X and y
@@ -1119,69 +1130,25 @@ def word_vec_classify(vector_file_name, dominant_prep, classification_method, pr
 
     # Classify
     if classification_method == 'lda':
-        clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', priors=np.asarray(priors_count), shrinkage=0.5)
-        # clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', shrinkage=0.5)
+        # clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', priors=np.asarray(priors_count), shrinkage=0.5)
+        clf = LinearDiscriminantAnalysis(n_components=n_dimensions, solver='eigen', shrinkage=0.5)
 
         scores = cross_val_score(clf, X, y, cv=5)
         print("lda:", scores)
         print("mean:", scores.mean())
 
-        # clf.fit(X_train, y_train)
-        #
-        # train_count_correct = 0
-        # for i in range(len(X_train)):
-        #     # print([X_test[i]])
-        #     prediction = clf.predict(np.array([X_train[i]]))
-        #     if prediction == y_train[i]:
-        #         train_count_correct += 1
-        # print('train_count_correct', train_count_correct)
-        # print('train_total', len(X_train))
-        # print('train_percentage:', train_count_correct / len(X_train))
-        #
-        # test_count_correct = 0
-        # for i in range(len(X_test)):
-        #     # print([X_test[i]])
-        #     prediction = clf.predict(np.array([X_test[i]]))
-        #     if prediction == y_test[i]:
-        #         test_count_correct += 1
-        # print('test_count_correct', test_count_correct)
-        # print('test_total', len(X_test))
-        # print('test_percentage:', test_count_correct / len(X_test))
-
     elif classification_method == 'qda':
-        clf = QuadraticDiscriminantAnalysis(priors=np.asarray(priors_count))
-        # clf = QuadraticDiscriminantAnalysis()
+        # clf = QuadraticDiscriminantAnalysis(priors=np.asarray(priors_count))
+        clf = QuadraticDiscriminantAnalysis()
 
         scores = cross_val_score(clf, X, y, cv=5)
         print("qda:", scores)
         print("mean:", scores.mean())
 
-        # clf.fit(X_train, y_train)
-        #
-        # train_count_correct = 0
-        # for i in range(len(X_train)):
-        #     # print([X_train[i]])
-        #     prediction = clf.predict(np.array([X_train[i]]))
-        #     if prediction == y_train[i]:
-        #         train_count_correct += 1
-        # print('train_count_correct', train_count_correct)
-        # print('train_test_total', len(X_train))
-        # print('train_percentage:', train_count_correct / len(X_train))
-        #
-        # test_count_correct = 0
-        # for i in range(len(X_test)):
-        #     # print([X_test[i]])
-        #     prediction = clf.predict(np.array([X_test[i]]))
-        #     if prediction == y_test[i]:
-        #         test_count_correct += 1
-        # print('test_count_correct', test_count_correct)
-        # print('test_total', len(X_test))
-        # print('test_percentage:', test_count_correct / len(X_test))
 
-
-def get_word_vectors_and_feature_vectors(prepositions, subj_obj_file, prep_subj_obj_file_name, model, vocab):
-    word_and_feature_vectors = []
-    word_and_feature_vectors_prep = []
+def get_input_vectors(prepositions, subj_obj_file, prep_subj_obj_file_name, model, vocab):
+    input_vectors = []
+    input_vectors_prep = []
     for prep in prepositions:
         data = get_prep_data(prep)
 
@@ -1193,28 +1160,42 @@ def get_word_vectors_and_feature_vectors(prepositions, subj_obj_file, prep_subj_
 
         for i in range(len(data)):
             if data.iloc[i, 2] in vocab and data.iloc[i, 9] in vocab:
-                concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
-                                                            np.asarray(model[data.iloc[i, 9]])))
+                # concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
+                #                                             np.asarray(model[data.iloc[i, 9]])))
+                #
+                # feature_vector = get_feature_vector(data, i)
+                #
+                # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
+                # divisor = sum(prep_frequencies)
+                # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
+                #
+                # input_vector = np.concatenate((concatenated_word_vectors, feature_vector,
+                #                                           normalized_prep_frequencies))
+
+
+
+                # diff_word_vectors = np.subtract(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
+                # addition_word_vectors = np.add(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
+                # concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]])))
 
                 feature_vector = get_feature_vector(data, i)
 
-                prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
-                divisor = sum(prep_frequencies)
-                normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
+                # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
+                # divisor = sum(prep_frequencies)
+                # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
 
-                word_and_feature_vector = np.concatenate((concatenated_word_vectors, feature_vector,
-                                                          normalized_prep_frequencies))
+                # input_vector = np.concatenate((concatenated_word_vectors, normalized_prep_frequencies))
+                input_vector = feature_vector
+                # input_vector = np.concatenate((concatenated_word_vectors, feature_vector))
 
-                # print(len(word_and_feature_vector))
+                input_vectors.append(input_vector)
 
-                word_and_feature_vectors.append(word_and_feature_vector)
+                input_vectors_prep.append(prepositions.index(prep))
 
-                word_and_feature_vectors_prep.append(prepositions.index(prep))
-
-                # print(len(word_and_feature_vector))
+                # print(len(input_vector))
         print(prep, "done")
 
-    return word_and_feature_vectors, word_and_feature_vectors_prep
+    return input_vectors, input_vectors_prep
 
 
 def random_data_sampling(prepositions):
@@ -1228,17 +1209,149 @@ def random_data_sampling(prepositions):
             box_images(prep, index_list[i])
 
 
+def classify(vector_file_name, vector_prep_file_name, model, preps):
+    # Retrieve vectors for each word
+    label_location = "prep_occurrences/" + vector_file_name + ".p"
+    vectors = np.asarray(pickle.load(open(label_location, "rb")))
+
+    # Retrieve prepositions associated with each word only if reduction_method is 'lda'
+    prep_order_location = "prep_occurrences/" + vector_prep_file_name + ".p"
+    vector_prepositions = np.asarray(pickle.load(open(prep_order_location, "rb")))
+
+    # Get X and y
+    X = np.array(vectors)
+    y = np.array(vector_prepositions)
+
+    # Randomly shuffle X and y
+    X, y = shuffle(X, y, random_state=0)
+
+    kf = KFold(n_splits=5)
+
+    # Classify
+    if model == 'prototype':
+        scores = []
+        for train_index, test_index in kf.split(X):
+            # print("TRAIN:", train_index, "TEST:", test_index)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            # Get prototype vectors (train)
+            prototype_vectors = []
+            for i in range(len(preps)):
+                indices = np.where(y_train == i)
+                class_i_vectors = X_train[indices]
+                class_i_vectors_sum = np.sum(class_i_vectors, axis=0)
+                # print('X_train[0]', X_train[[0, 1]])
+                # print('class_i_vectors_sum', class_i_vectors_sum)
+                prototype_vector = np.true_divide(class_i_vectors_sum, len(indices))
+                prototype_vectors.append(prototype_vector)
+            # print('prototype_vectors', prototype_vectors)
+            # print('len(prototype_vectors)', len(prototype_vectors))
+
+            # Classify test data
+            correct = 0
+            total = len(X_test)
+            for i in range(len(X_test)):
+                # Calculate similarity of each x_test vector with each prototype and classify x_test vector as the class of the most similar prototype
+                similarities = []
+                for prototype_vector in prototype_vectors:
+                    similarity = math.exp(-(distance.euclidean(X_test[i], prototype_vector)))
+                    similarities.append(similarity)
+                most_similar_class_index = similarities.index(max(similarities))
+                if most_similar_class_index == y_test[i]:
+                    correct += 1
+            score = float(correct) / float(total)
+            print('correct', correct)
+            print('total', total)
+            # print('score', score)
+            scores.append(score)
+        print('scores', str(scores))
+        avg_score = sum(scores) / kf.get_n_splits(X)
+        print('average score', str(avg_score))
+
+    elif model == 'exemplar':
+        scores = []
+        for train_index, test_index in kf.split(X):
+            # print("TRAIN:", train_index, "TEST:", test_index)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            # Classify test data
+            correct = 0
+            total = len(X_test)
+            for i in range(len(X_test)):
+                # Calculate similarity of each x_test vector with each prototype and classify x_test vector as the class of the most similar prototype
+                similarities = []
+
+                for j in range(len(preps)):
+                    indices = np.where(y_train == j)
+                    class_i_vectors = X_train[indices]
+                    class_i_similarities = []
+                    for class_i_vector in class_i_vectors:
+                        similarity = math.exp(-(distance.euclidean(X_test[i], class_i_vector)))
+                        class_i_similarities.append(similarity)
+                    class_i_similarities_sum = sum(class_i_similarities)
+                    similarities.append(class_i_similarities_sum)
+
+                    most_similar_class_index = similarities.index(max(similarities))
+                if most_similar_class_index == y_test[i]:
+                    correct += 1
+            score = float(correct) / float(total)
+            print('correct', correct)
+            print('total', total)
+            # print('score', score)
+            scores.append(score)
+        print('scores', str(scores))
+        avg_score = sum(scores) / kf.get_n_splits(X)
+        print('average score', str(avg_score))
+
+    elif model == '1nn':
+        scores = []
+        for train_index, test_index in kf.split(X):
+            # print("TRAIN:", train_index, "TEST:", test_index)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            # Classify test data
+            correct = 0
+            total = len(X_test)
+            for i in range(len(X_test)):
+                # Calculate similarity of each x_test vector with each prototype and classify x_test vector as the class of the most similar prototype
+                similarities = []
+
+                for j in range(len(X_train)):
+                    similarity = math.exp(-(distance.euclidean(X_test[i], X_train[j])))
+                    similarities.append(similarity)
+
+                most_similar_class_index = similarities.index(max(similarities))
+                if y_train[most_similar_class_index] == y_test[i]:
+                    correct += 1
+            score = float(correct) / float(total)
+            print('correct', correct)
+            print('total', total)
+            # print('score', score)
+            scores.append(score)
+        print('scores', str(scores))
+        avg_score = sum(scores) / kf.get_n_splits(X)
+        print('average score', str(avg_score))
+
+
+
 def main():
-    prepositions = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
-                  "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
-                  "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
-                  "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
-                  "within", "without"]
 
-    # Spatial prepositions
-    prepositions = ["above", "across", "against", "along", "behind", "beside", "beyond", "in", "on", "under"]
+    # prepositions = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
+    #               "at", "behind", "below", "beneath", "beside", "between", "beyond", "by", "down", "from", "in",
+    #               "inside", "into", "near", "off", "on", "onto", "opposite", "out", "outside", "over", "past",
+    #               "stop", "through", "throughout", "to", "toward", "under", "underneath", "up", "upon", "with",
+    #               "within", "without"]
+    #
+    # # Spatial prepositions
+    # prepositions = ["above", "across", "against", "along", "behind", "beside", "beyond", "in", "on", "under"]
 
-    # prepositions = ['in', 'on']
+    # Yang decided prepositions
+    prepositions = ["above", "across", "against", "along", "alongside", "amid", "amidst", "around", "behind", "below",
+                    "beneath", "beside", "beyond", "down", "in", "inside", "into", "near", "on", "onto", "outside",
+                    "over", "through", "under", "underneath"]
 
     # # Plot each preposition by itself
     # for prep in prepositions:
@@ -1255,8 +1368,8 @@ def main():
     # # Box all images in order of prepositions
     # box_images(prepositions)
 
-    # # Get word vectors for unique obj/subj/subj_obj and their most dominant prep
-    #
+    # Get word vectors for unique obj/subj/subj_obj and their most dominant prep
+
     # # Get all unique subj, obj, and (subj, obj)
     # unique_subj, unique_obj, unique_subj_obj = get_obj_and_subj(prepositions)
     #
@@ -1520,26 +1633,31 @@ def main():
 
     # Classifiers ######################
 
-    # All prepositions
+    # # All prepositions
+    #
+    # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+    # print("word2vec model loaded")
+    # word_vectors = model.wv
+    # vocab = word_vectors.vocab
+    #
+    # input_vectors, input_vectors_prep = get_input_vectors(prepositions, "unique_subj_obj", "prep_subj_obj", model,
+    #                                                       vocab)
+    #
+    # pickle_file(input_vectors, "input_vectors")
+    # pickle_file(input_vectors_prep, "input_vectors_prep")
+    #
+    # # Using concat(subj, obj, feature_vectors), LDA and QDA accuracy are on avg 0.63084 and 0.25897
+    # # Using concat(subj, obj, feature_vectors, prep_frequencies), LDA and QDA accuracy are on avg 0.7543 and 0.2721
+    # print("word_vec_classify:")
+    # word_vec_classify('input_vectors', 'input_vectors_prep', 'lda', prepositions)
+    # word_vec_classify('input_vectors', 'input_vectors_prep', 'qda', prepositions)
 
-    model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-    print("word2vec model loaded")
-    word_vectors = model.wv
-    vocab = word_vectors.vocab
+    # Prototype, Exemplar, 1NN Models for classification
+    print("classify:")
+    # classify('input_vectors', 'input_vectors_prep', 'prototype', prepositions)
+    # classify('input_vectors', 'input_vectors_prep', 'exemplar', prepositions)
+    classify('input_vectors', 'input_vectors_prep', '1nn', prepositions)
 
-    word_and_feature_vectors, word_and_feature_vectors_prep = get_word_vectors_and_feature_vectors(prepositions,
-                                                                                                   "unique_subj_obj",
-                                                                                                   "prep_subj_obj",
-                                                                                                   model, vocab)
-
-    pickle_file(word_and_feature_vectors, "word_and_feature_vectors")
-    pickle_file(word_and_feature_vectors_prep, "word_and_feature_vectors_prep")
-
-    # Using concat(subj, obj, feature_vectors), LDA and QDA accuracy are on avg 0.63084 and 0.25897
-    # Using concat(subj, obj, feature_vectors, prep_frequencies), LDA and QDA accuracy are on avg 0.7543 and 0.2721
-    print("Concatenated Word Vectors and Feature Vectors:")
-    word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'lda', prepositions)
-    word_vec_classify('word_and_feature_vectors', 'word_and_feature_vectors_prep', 'qda', prepositions)
 
     # # Using concat(subj, obj), LDA and QDA accuracy are on avg 0.51161 and 0.63085897
     # print("Concatenated Word Vectors:")
