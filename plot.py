@@ -1336,7 +1336,6 @@ def classify(vector_file_name, vector_prep_file_name, model, preps):
         print('average score', str(avg_score))
 
 
-
 def main():
 
     # prepositions = ["about", "above", "across", "after", "against", "along", "alongside", "amid", "amidst", "around",
