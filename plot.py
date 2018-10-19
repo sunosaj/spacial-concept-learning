@@ -24,6 +24,8 @@ from sklearn.model_selection import cross_val_score
 import random
 from sklearn.model_selection import KFold
 from scipy.spatial import distance
+from sklearn.cluster import MeanShift
+from sklearn.cluster import DBSCAN
 
 
 def get_prep_data(prep):
@@ -1146,56 +1148,50 @@ def word_vec_classify(vector_file_name, vector_prep_file_name, classification_me
         print("mean:", scores.mean())
 
 
-def get_input_vectors(prepositions, subj_obj_file, prep_subj_obj_file_name, model, vocab):
+def get_input_vectors(preposition, model, vocab):
     input_vectors = []
-    input_vectors_prep = []
-    for prep in prepositions:
-        data = get_prep_data(prep)
-
-        subj_obj_file_location = "prep_occurrences/" + subj_obj_file + ".p"
-        subj_obj = pickle.load(open(subj_obj_file_location, "rb"))
-
-        prep_subj_obj_file_location = "prep_occurrences/" + prep_subj_obj_file_name + ".p"
-        prep_subj_obj = pickle.load(open(prep_subj_obj_file_location, "rb"))
-
-        for i in range(len(data)):
-            if data.iloc[i, 2] in vocab and data.iloc[i, 9] in vocab:
-                # concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
-                #                                             np.asarray(model[data.iloc[i, 9]])))
-                #
-                # feature_vector = get_feature_vector(data, i)
-                #
-                # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
-                # divisor = sum(prep_frequencies)
-                # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
-                #
-                # input_vector = np.concatenate((concatenated_word_vectors, feature_vector,
-                #                                           normalized_prep_frequencies))
+    input_vectors_index = []
+    unique_subj_obj = []
+    data = get_prep_data(preposition)
+    for i in range(len(data)):
+        if (data.iloc[i, 2] in vocab and data.iloc[i, 9] in vocab) and \
+                ((data.iloc[i, 9], data.iloc[i, 2]) not in unique_subj_obj):
+            # concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]),
+            #                                             np.asarray(model[data.iloc[i, 9]])))
+            #
+            # feature_vector = get_feature_vector(data, i)
+            #
+            # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
+            # divisor = sum(prep_frequencies)
+            # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
+            #
+            # input_vector = np.concatenate((concatenated_word_vectors, feature_vector,
+            #                                           normalized_prep_frequencies))
 
 
 
-                # diff_word_vectors = np.subtract(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
-                # addition_word_vectors = np.add(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
-                # concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]])))
+            # diff_word_vectors = np.subtract(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
+            # addition_word_vectors = np.add(np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]]))
+            concatenated_word_vectors = np.concatenate((np.asarray(model[data.iloc[i, 2]]), np.asarray(model[data.iloc[i, 9]])))
 
-                feature_vector = get_feature_vector(data, i)
+            # feature_vector = get_feature_vector(data, i)
 
-                # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
-                # divisor = sum(prep_frequencies)
-                # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
+            # prep_frequencies = prep_subj_obj[subj_obj.index((data.iloc[i, 9], data.iloc[i, 2]))]
+            # divisor = sum(prep_frequencies)
+            # normalized_prep_frequencies = np.true_divide(prep_frequencies, divisor)
 
-                # input_vector = np.concatenate((concatenated_word_vectors, normalized_prep_frequencies))
-                input_vector = feature_vector
-                # input_vector = np.concatenate((concatenated_word_vectors, feature_vector))
+            input_vector = concatenated_word_vectors
+            # input_vector = np.concatenate((concatenated_word_vectors, normalized_prep_frequencies))
+            # input_vector = feature_vector
+            # input_vector = np.concatenate((concatenated_word_vectors, feature_vector))
 
-                input_vectors.append(input_vector)
+            input_vectors.append(input_vector)
 
-                input_vectors_prep.append(prepositions.index(prep))
+            input_vectors_index.append(i)
 
-                # print(len(input_vector))
-        print(prep, "done")
+            unique_subj_obj.append((data.iloc[i, 9], data.iloc[i, 2]))
 
-    return input_vectors, input_vectors_prep
+    return input_vectors, input_vectors_index
 
 
 def random_data_sampling(prepositions):
@@ -1334,6 +1330,52 @@ def classify(vector_file_name, vector_prep_file_name, model, preps):
         print('scores', str(scores))
         avg_score = sum(scores) / kf.get_n_splits(X)
         print('average score', str(avg_score))
+
+
+def plot_tsne(vectors_file_name):
+    label_location = "prep_occurrences/" + vectors_file_name + ".p"
+    vectors = np.asarray(pickle.load(open(label_location, "rb")))
+
+    vectors_embedded = TSNE(n_components=2).fit_transform(vectors)
+    pickle_file(vectors_embedded, 'vectors_embedded_' + vectors_file_name[-2:])
+    print('tsne transformed')
+
+    plt.figure(figsize=(14, 5))
+
+    plt.subplot(1, 2, 1)
+
+    plt.plot(vectors_embedded[:, 0], vectors_embedded[:, 1], 'ro', markersize=1)
+
+    plt.gca().set_aspect('equal', adjustable='box')
+
+    # Add x, y axis
+    plt.axhline(linewidth=0.5, color='k')
+    plt.axvline(linewidth=0.5, color='k')
+
+    ############################
+    # Kernel Density Estimator #
+    plt.subplot(1, 2, 2)
+    # plt.axis([-2, 2, -2, 2])
+
+    kde_x = vectors_embedded[:, 0]
+    kde_y = vectors_embedded[:, 1]
+
+    kde_x_normalized_diff = np.asarray(kde_x)
+    kde_y_normalized_diff = np.asarray(kde_y)
+
+    k = kde.gaussian_kde([kde_x_normalized_diff, kde_y_normalized_diff])
+    xi, yi = np.mgrid[kde_x_normalized_diff.min():kde_x_normalized_diff.max():100j,
+             kde_y_normalized_diff.min():kde_y_normalized_diff.max():100j]
+    zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+
+    plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.gist_earth_r)
+    plt.axhline(linewidth=0.5, color='k')
+    plt.axvline(linewidth=0.5, color='k')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.colorbar()
+    ############################
+    plt.title(vectors_file_name[-2:])
+    plt.show()
 
 
 def main():
@@ -1651,11 +1693,11 @@ def main():
     # word_vec_classify('input_vectors', 'input_vectors_prep', 'lda', prepositions)
     # word_vec_classify('input_vectors', 'input_vectors_prep', 'qda', prepositions)
 
-    # Prototype, Exemplar, 1NN Models for classification
-    print("classify:")
+    ## Prototype, Exemplar, 1NN Models for classification
+    # print("classify:")
     # classify('input_vectors', 'input_vectors_prep', 'prototype', prepositions)
     # classify('input_vectors', 'input_vectors_prep', 'exemplar', prepositions)
-    classify('input_vectors', 'input_vectors_prep', '1nn', prepositions)
+    # classify('input_vectors', 'input_vectors_prep', '1nn', prepositions)
 
 
     # # Using concat(subj, obj), LDA and QDA accuracy are on avg 0.51161 and 0.63085897
@@ -1748,9 +1790,210 @@ def main():
     # word_vec_classify('in_on_subj_obj_vec', 'in_on_subj_obj_vec_preps', 'lda', prepositions)
     # word_vec_classify('subj_obj_vec', 'subj_obj_vec_preps', 'qda', prepositions)
 
+    ##############################################################################################
 
-    # # Sample high quality data
-    # random_data_sampling(prepositions)
+    # Testing TSNE on each preposition's scatter plot of word embeddings for subj and obj
+
+    # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+    # print("word2vec model loaded")
+    # word_vectors = model.wv
+    # vocab = word_vectors.vocab
+
+    # # IN
+    # input_vectors_in, input_vectors_in_index = get_input_vectors('in', model, vocab)
+    # print(np.asarray(input_vectors_in).shape)
+    # print(np.asarray(input_vectors_in_index).shape)
+    # print('input_vectors_in done')
+    # pickle_file(input_vectors_in, "input_vectors_in")
+    # pickle_file(input_vectors_in_index, "input_vectors_in_index")
+    #
+    # plot_tsne("input_vectors_in")
+
+    # # ON
+    # input_vectors_on, input_vectors_on_index = get_input_vectors('on', model, vocab)
+    # print(np.asarray(input_vectors_on).shape)
+    # print(np.asarray(input_vectors_on_index).shape)
+    # print('input_vectors_on done')
+    # pickle_file(input_vectors_on, "input_vectors_on")
+    # pickle_file(input_vectors_on_index, "input_vectors_on_index")
+    #
+    # plot_tsne("input_vectors_on")
+
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb")))
+    # on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb")))
+    # in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+
+    # ########## Mean Shift ON (600 dimensions)###########
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on.p", "rb"))) # 600 dimensions
+    # on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+    # clustering = MeanShift().fit(on_word_vecs)
+    # print(np.unique(clustering.labels_))
+    # labels = clustering.labels_
+    # cluster_centers = clustering.cluster_centers_
+    # pickle_file(labels, "on_meanshift_labels_600d")
+    # pickle_file(cluster_centers, "on_meanshift_cluster_centers_600d")
+    # labels_unique = np.unique(labels)
+    # n_clusters_ = len(labels_unique)
+    # print(n_clusters_)
+    # print(cluster_centers)
+    # #####################
+    # # on_meanshift_labels = pickle.load(open("prep_occurrences/on_meanshift_labels.p", "rb"))
+    # # on_meanshift_cluster_centers = pickle.load(open("prep_occurrences/on_meanshift_cluster_centers.p", "rb"))
+    # #
+    # # print(np.unique(on_meanshift_labels))
+    # # print(on_meanshift_cluster_centers)
+    # #####################################################
+    #
+    # ############ Mean Shift ON (2 dimensions) ###########
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    # on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+    # clustering = MeanShift().fit(on_word_vecs)
+    # print(np.unique(clustering.labels_))
+    # labels = clustering.labels_
+    # cluster_centers = clustering.cluster_centers_
+    # pickle_file(labels, "on_meanshift_labels_2d")
+    # pickle_file(cluster_centers, "on_meanshift_cluster_centers_2d")
+    # labels_unique = np.unique(labels)
+    # n_clusters_ = len(labels_unique)
+    # print(n_clusters_)
+    # print(cluster_centers)
+    # ######################################################
+
+    # ############## Mean Shift IN (600d) ############
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in.p", "rb"))) # 600 dimensions
+    # in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+    #
+    # print(len(in_word_vecs[0]))
+    # clustering = MeanShift().fit(in_word_vecs)
+    # print(np.unique(clustering.labels_))
+    # labels = clustering.labels_
+    # cluster_centers = clustering.cluster_centers_
+    # pickle_file(labels, "in_meanshift_labels_600d")
+    # pickle_file(cluster_centers, "in_meanshift_cluster_centers_600d")
+    # labels_unique = np.unique(labels)
+    # n_clusters_ = len(labels_unique)
+    # print(n_clusters_)
+    # print(cluster_centers)
+    # #################################################
+    #
+    # ############# Mean Shift IN (2d) #################
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+    #
+    # print(len(in_word_vecs[0]))
+    # clustering = MeanShift().fit(in_word_vecs)
+    # print(np.unique(clustering.labels_))
+    # labels = clustering.labels_
+    # cluster_centers = clustering.cluster_centers_
+    # pickle_file(labels, "in_meanshift_labels_2d")
+    # pickle_file(cluster_centers, "in_meanshift_cluster_centers_2d")
+    # labels_unique = np.unique(labels)
+    # n_clusters_ = len(labels_unique)
+    # print(n_clusters_)
+    # print(cluster_centers)
+    # ##################################################
+
+
+    # # DBSCAN
+    # clustering = DBSCAN().fit(on_word_vecs)
+    # print(np.unique(clustering.labels_))
+    #
+    # clustering = DBSCAN().fit(in_word_vecs)
+    # print(np.unique(clustering.labels_))
+
+
+    # ################## Find closest points to point to ON (600d) ####################
+    # data = get_prep_data("on")
+    # nodes = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on.p", "rb")))
+    # on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+    # on_meanshift_cluster_centers = np.asarray(pickle.load(open("prep_occurrences/on_meanshift_cluster_centers_600d.p", "rb")))
+    #
+    # for cluster_center in on_meanshift_cluster_centers:
+    #     # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+    #     # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+    #     print('Cluster Center:', cluster_center)
+    #     dist_2 = np.sum((nodes - cluster_center) ** 2, axis=1)
+    #     k = 20
+    #     # print(np.argmin(dist_2))
+    #     k_smallest_indices = np.argpartition(dist_2, k)
+    #     # print(k_smallest_indices)
+    #     # print(on_word_vecs[np.argmin(dist_2)])
+    #     for i in range(k):
+    #         # print(on_word_vecs_index[k_smallest_indices[i]])
+    #         # print(nodes[k_smallest_indices[i]])
+    #         print(str(data.iloc[on_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(data.iloc[on_word_vecs_index[k_smallest_indices[i]], 2]))
+    # ###############################################################################
+
+    # ################## Find closest points to point to ON (2d) ####################
+    # data = get_prep_data("on")
+    # nodes = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb")))
+    # on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+    # on_meanshift_cluster_centers = np.asarray(pickle.load(open("prep_occurrences/on_meanshift_cluster_centers_2d.p", "rb")))
+    #
+    # for cluster_center in on_meanshift_cluster_centers:
+    #     # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+    #     # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+    #     print('Cluster Center:', cluster_center)
+    #     dist_2 = np.sum((nodes - cluster_center) ** 2, axis=1)
+    #     k = 20
+    #     # print(np.argmin(dist_2))
+    #     k_smallest_indices = np.argpartition(dist_2, k)
+    #     # print(k_smallest_indices)
+    #     # print(on_word_vecs[np.argmin(dist_2)])
+    #     for i in range(k):
+    #         # print(on_word_vecs_index[k_smallest_indices[i]])
+    #         # print(nodes[k_smallest_indices[i]])
+    #         print(str(data.iloc[on_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(
+    #             data.iloc[on_word_vecs_index[k_smallest_indices[i]], 2]))
+    # ###############################################################################
+
+    # ################### Find closest points to point to IN (600d) #################
+    # data = get_prep_data("in")
+    # nodes = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in.p", "rb")))
+    # in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+    # in_meanshift_cluster_centers = np.asarray(pickle.load(open("prep_occurrences/in_meanshift_cluster_centers_600d.p", "rb")))
+    #
+    # for cluster_center in in_meanshift_cluster_centers:
+    #     # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+    #     # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+    #     print('Cluster Center:', cluster_center)
+    #     dist_2 = np.sum((nodes - cluster_center) ** 2, axis=1)
+    #     k = 20
+    #     # print(np.argmin(dist_2))
+    #     k_smallest_indices = np.argpartition(dist_2, k)
+    #     # print(k_smallest_indices)
+    #     # print(on_word_vecs[np.argmin(dist_2)])
+    #     for i in range(k):
+    #         # print(in_word_vecs_index[k_smallest_indices[i]])
+    #         # print(nodes[k_smallest_indices[i]])
+    #         print(str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 2]))
+    #         # box_images('in', in_word_vecs_index[k_smallest_indices[i]])
+    # ################################################################################
+
+    ################### Find closest points to point to IN (2d) #################
+    data = get_prep_data("in")
+    nodes = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb")))
+    in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+    in_meanshift_cluster_centers = np.asarray(pickle.load(open("prep_occurrences/in_meanshift_cluster_centers_2d.p", "rb")))
+
+    for cluster_center in in_meanshift_cluster_centers:
+        # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+        # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+        print('Cluster Center:', cluster_center)
+        dist_2 = np.sum((nodes - cluster_center) ** 2, axis=1)
+        k = 20
+        # print(np.argmin(dist_2))
+        k_smallest_indices = np.argpartition(dist_2, k)
+        # print(k_smallest_indices)
+        # print(on_word_vecs[np.argmin(dist_2)])
+        for i in range(k):
+            # print(in_word_vecs_index[k_smallest_indices[i]])
+            # print(nodes[k_smallest_indices[i]])
+            print(str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 2]))
+            # box_images('in', in_word_vecs_index[k_smallest_indices[i]])
+    ################################################################################
 
 
 if __name__ == "__main__":
