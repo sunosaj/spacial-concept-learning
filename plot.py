@@ -2008,75 +2008,134 @@ def main():
     # plt.show()
 
 
-    def draw_ellipse(position, covariance, ax=None, **kwargs):
-        """Draw an ellipse with a given position and covariance"""
-        ax = ax or plt.gca()
+    # def draw_ellipse(position, covariance, ax=None, **kwargs):
+    #     """Draw an ellipse with a given position and covariance"""
+    #     ax = ax or plt.gca()
+    #
+    #     # Convert covariance to principal axes
+    #     if covariance.shape == (2, 2):
+    #         U, s, Vt = np.linalg.svd(covariance)
+    #         angle = np.degrees(np.arctan2(U[1, 0], U[0, 0]))
+    #         width, height = 2 * np.sqrt(s)
+    #     else:
+    #         angle = 0
+    #         width, height = 2 * np.sqrt(covariance)
+    #
+    #     # Draw the Ellipse
+    #     for nsig in range(1, 4):
+    #         ax.add_patch(Ellipse(position, nsig * width, nsig * height,
+    #                              angle, **kwargs))
+    #         # plt.plot(position[0], position[1], 'kx')
+    #
+    #
+    # def plot_gmm(gmm, X, title, label=True, ax=None):
+    #     ax = ax or plt.gca()
+    #     labels = gmm.fit(X).predict(X)
+    #     if label:
+    #         ax.scatter(X[:, 0], X[:, 1], c=labels, s=1, cmap='viridis', zorder=2)
+    #     else:
+    #         ax.scatter(X[:, 0], X[:, 1], s=1, zorder=2)
+    #     ax.axis('equal')
+    #
+    #     w_factor = 0.2 / gmm.weights_.max()
+    #     for pos, covar, w in zip(gmm.means_, gmm.covars_, gmm.weights_):
+    #         # draw_ellipse(pos, covar, alpha=w * w_factor)
+    #         print(pos)
+    #         plt.plot(pos[0], pos[1], 'kx')
+    #
+    #
+    #     plt.title(title)
+    #     plt.show()
+    #
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=5, random_state=42)
+    # plot_gmm(gmm, on_word_vecs, 'on')
+    #
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=20, random_state=42)
+    # plot_gmm(gmm, on_word_vecs, 'on')
+    #
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=100, random_state=42)
+    # plot_gmm(gmm, on_word_vecs, 'on')
+    #
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=5, random_state=42)
+    # plot_gmm(gmm, in_word_vecs, 'in')
+    #
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=20, random_state=42)
+    # plot_gmm(gmm, in_word_vecs, 'in')
+    #
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=100, random_state=42)
+    # plot_gmm(gmm, in_word_vecs, 'in')
+    #
+    # on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=500, random_state=42)
+    # plot_gmm(gmm, on_word_vecs, 'on')
+    #
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # gmm = GMM(n_components=500, random_state=42)
+    # plot_gmm(gmm, in_word_vecs, 'in')
 
-        # Convert covariance to principal axes
-        if covariance.shape == (2, 2):
-            U, s, Vt = np.linalg.svd(covariance)
-            angle = np.degrees(np.arctan2(U[1, 0], U[0, 0]))
-            width, height = 2 * np.sqrt(s)
-        else:
-            angle = 0
-            width, height = 2 * np.sqrt(covariance)
 
-        # Draw the Ellipse
-        for nsig in range(1, 4):
-            ax.add_patch(Ellipse(position, nsig * width, nsig * height,
-                                 angle, **kwargs))
-            # plt.plot(position[0], position[1], 'kx')
+    # Nov. 1, 2018 ##################################################################
+    # Find sample scenes from the clusters and see what they represent ##############
+
+    # def find_gmm_means_and_samples(gmm, X, X_index, title, label=True, ax=None):
+    #
+
+    # # IN
+    # data = get_prep_data("in")
+    # in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
+    # in_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in_index.p", "rb")))
+    # gmm = GMM(n_components=500, random_state=42)
+    # labels = gmm.fit(in_word_vecs).predict(in_word_vecs)
+    # means = gmm.means_
+    # # print(means)
+    #
+    # for mean in means:
+    #     # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+    #     # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+    #     print('Cluster Center:', mean)
+    #     dist_2 = np.sum((in_word_vecs - mean) ** 2, axis=1)
+    #     k = 20
+    #     # print(np.argmin(dist_2))
+    #     k_smallest_indices = np.argpartition(dist_2, k)
+    #     # print(k_smallest_indices)
+    #     # print(on_word_vecs[np.argmin(dist_2)])
+    #     for i in range(k):
+    #         # print(in_word_vecs_index[k_smallest_indices[i]])
+    #         # print(nodes[k_smallest_indices[i]])
+    #         print(str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(data.iloc[in_word_vecs_index[k_smallest_indices[i]], 2]))
+    #         # box_images('in', in_word_vecs_index[k_smallest_indices[i]])
 
 
-    def plot_gmm(gmm, X, title, label=True, ax=None):
-        ax = ax or plt.gca()
-        labels = gmm.fit(X).predict(X)
-        if label:
-            ax.scatter(X[:, 0], X[:, 1], c=labels, s=1, cmap='viridis', zorder=2)
-        else:
-            ax.scatter(X[:, 0], X[:, 1], s=1, zorder=2)
-        ax.axis('equal')
-
-        w_factor = 0.2 / gmm.weights_.max()
-        for pos, covar, w in zip(gmm.means_, gmm.covars_, gmm.weights_):
-            draw_ellipse(pos, covar, alpha=w * w_factor)
-            plt.plot(pos[0], pos[1], 'kx')
-
-
-        plt.title(title)
-        plt.show()
-
+    # ON
+    data = get_prep_data("on")
     on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=5, random_state=42)
-    plot_gmm(gmm, on_word_vecs, 'on')
-
-    on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=20, random_state=42)
-    plot_gmm(gmm, on_word_vecs, 'on')
-
-    on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=100, random_state=42)
-    plot_gmm(gmm, on_word_vecs, 'on')
-
-    in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=5, random_state=42)
-    plot_gmm(gmm, in_word_vecs, 'in')
-
-    in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=20, random_state=42)
-    plot_gmm(gmm, in_word_vecs, 'in')
-
-    in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=100, random_state=42)
-    plot_gmm(gmm, in_word_vecs, 'in')
-
-    on_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_on.p", "rb"))) # 2 dimensions
+    on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
     gmm = GMM(n_components=500, random_state=42)
-    plot_gmm(gmm, on_word_vecs, 'on')
+    labels = gmm.fit(on_word_vecs).predict(on_word_vecs)
+    means = gmm.means_
+    # print(means)
 
-    in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/vectors_embedded_in.p", "rb"))) # 2 dimensions
-    gmm = GMM(n_components=500, random_state=42)
-    plot_gmm(gmm, in_word_vecs, 'in')
+    for mean in means:
+        # https://codereview.stackexchange.com/questions/28207/finding-the-closest-point-to-a-list-of-points
+        # https://stackoverflow.com/questions/34226400/find-the-index-of-the-k-smallest-values-of-a-numpy-array
+        print('Cluster Center:', mean)
+        dist_2 = np.sum((on_word_vecs - mean) ** 2, axis=1)
+        k = 20
+        # print(np.argmin(dist_2))
+        k_smallest_indices = np.argpartition(dist_2, k)
+        # print(k_smallest_indices)
+        # print(on_word_vecs[np.argmin(dist_2)])
+        for i in range(k):
+            # print(in_word_vecs_index[k_smallest_indices[i]])
+            # print(nodes[k_smallest_indices[i]])
+            print(str(data.iloc[on_word_vecs_index[k_smallest_indices[i]], 9]) + ", " + str(data.iloc[on_word_vecs_index[k_smallest_indices[i]], 2]))
+            # box_images('in', in_word_vecs_index[k_smallest_indices[i]])
 
 
 if __name__ == "__main__":
