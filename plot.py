@@ -2138,5 +2138,11 @@ def main():
             # box_images('in', in_word_vecs_index[k_smallest_indices[i]])
 
 
+    # November 9, 2018 # DO LDA for IN and ON and do GMM
+    in_word_vecs = np.asarray(pickle.load(open("prep_occurrences/input_vectors_in.p", "rb")))
+    on_word_vecs_index = np.asarray(pickle.load(open("prep_occurrences/input_vectors_on_index.p", "rb")))
+
+
+
 if __name__ == "__main__":
     main()
